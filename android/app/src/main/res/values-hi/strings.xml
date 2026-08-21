@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">पुस्तक वाचक</string>
+    <string name="home_title">पुस्तक वाचक</string>
+    <string name="scan_book">पुस्तक स्कैन करें</string>
+    <string name="import_pdf">PDF आयात करें</string>
+    <string name="my_library">मेरी लाइब्रेरी</string>
+    <string name="my_voice">मेरी आवाज़</string>
+    <string name="settings">सेटिंग्स</string>
+    <string name="continue_reading">पढ़ना जारी रखें</string>
+    <string name="continue_action">जारी रखें</string>
+    <string name="manage_voice">आवाज़ प्रबंधित करें</string>
+    <string name="play">चलाएँ</string>
+    <string name="pause">रोकें</string>
+    <string name="next">आगे</string>
+    <string name="previous">पीछे</string>
+    <string name="offline">ऑफ़लाइन</string>
+    <string name="online">ऑनलाइन</string>
+    <string name="align_page">पृष्ठ को फ्रेम के अंदर रखें</string>
+    <string name="use_page">पृष्ठ उपयोग करें</string>
+    <string name="retake">फिर से लें</string>
+    <string name="read_aloud">ज़ोर से पढ़ें</string>
+    <string name="privacy">गोपनीयता</string>
+    <string name="voice_consent">मैं पुष्टि करता/करती हूँ कि यह मेरी अपनी आवाज़ है, या ऐसी आवाज़ जिसे उपयोग करने की अनुमति मेरे पास है।</string>
+</resources>

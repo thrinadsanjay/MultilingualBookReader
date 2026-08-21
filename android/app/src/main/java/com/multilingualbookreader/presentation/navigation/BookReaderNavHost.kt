@@ -1,0 +1,102 @@
+package com.multilingualbookreader.presentation.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.multilingualbookreader.presentation.home.HomeRoute
+import com.multilingualbookreader.presentation.library.LibraryRoute
+import com.multilingualbookreader.presentation.pdf.PdfImportRoute
+import com.multilingualbookreader.presentation.reader.ReaderRoute
+import com.multilingualbookreader.presentation.scan.ScanRoute
+import com.multilingualbookreader.presentation.search.SearchRoute
+import com.multilingualbookreader.presentation.settings.PrivacyRoute
+import com.multilingualbookreader.presentation.settings.SettingsRoute
+import com.multilingualbookreader.presentation.voice.VoiceRoute
+import com.multilingualbookreader.presentation.voice.VoiceTestRoute
+
+object Routes {
+    const val Home = "home"
+    const val Library = "library"
+    const val Settings = "settings"
+    const val Privacy = "privacy"
+    const val Scan = "scan?bookId={bookId}"
+    const val PdfImport = "pdf"
+    const val Reader = "reader/{bookId}"
+    const val Voice = "voice"
+    const val VoiceTest = "voice-test"
+    const val Search = "search/{bookId}"
+}
+
+@Composable
+fun BookReaderNavHost() {
+    val nav = rememberNavController()
+    NavHost(navController = nav, startDestination = Routes.Home) {
+        composable(Routes.Home) {
+            HomeRoute(
+                onScan = { nav.navigate("scan?bookId=") },
+                onImportPdf = { nav.navigate(Routes.PdfImport) },
+                onLibrary = { nav.navigate(Routes.Library) },
+                onVoice = { nav.navigate(Routes.Voice) },
+                onSettings = { nav.navigate(Routes.Settings) },
+                onContinue = { bookId -> nav.navigate("reader/$bookId") },
+            )
+        }
+        composable(Routes.Library) {
+            LibraryRoute(
+                onOpen = { nav.navigate("reader/$it") },
+                onBack = { nav.popBackStack() },
+            )
+        }
+        composable(Routes.Settings) {
+            SettingsRoute(
+                onPrivacy = { nav.navigate(Routes.Privacy) },
+                onVoiceTest = { nav.navigate(Routes.VoiceTest) },
+                onBack = { nav.popBackStack() },
+            )
+        }
+        composable(Routes.Privacy) { PrivacyRoute(onBack = { nav.popBackStack() }) }
+        composable(
+            route = Routes.Scan,
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType; defaultValue = "" }),
+        ) {
+            ScanRoute(
+                onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                onBack = { nav.popBackStack() },
+            )
+        }
+        composable(Routes.PdfImport) {
+            PdfImportRoute(
+                onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                onBack = { nav.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.Reader,
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
+        ) {
+            val bookId = it.arguments?.getString("bookId").orEmpty()
+            ReaderRoute(
+                bookId = bookId,
+                onBack = { nav.popBackStack() },
+                onSearch = { nav.navigate("search/$bookId") },
+            )
+        }
+        composable(Routes.Voice) { VoiceRoute(onBack = { nav.popBackStack() }, onTest = { nav.navigate(Routes.VoiceTest) }) }
+        composable(Routes.VoiceTest) { VoiceTestRoute(onBack = { nav.popBackStack() }) }
+        composable(
+            route = Routes.Search,
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
+        ) {
+            SearchRoute(
+                bookId = it.arguments?.getString("bookId").orEmpty(),
+                onOpenPage = { page ->
+                    nav.popBackStack()
+                },
+                onBack = { nav.popBackStack() },
+            )
+        }
+    }
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="books" path="books/" />
+    <files-path name="audio" path="audio/" />
+    <files-path name="voice" path="voice/" />
+    <cache-path name="cache" path="." />
+</paths>

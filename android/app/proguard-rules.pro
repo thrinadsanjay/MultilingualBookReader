@@ -1,0 +1,7 @@
+-keepattributes *Annotation*, InnerClasses
+-dontwarn org.bouncycastle.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**
+-keep class androidx.media3.** { *; }
+-keep class com.google.mlkit.** { *; }
+-keep class dagger.hilt.** { *; }

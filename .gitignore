@@ -1,0 +1,52 @@
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+*.swp
+.vscode/
+.cursor/
+
+# Android / Gradle
+.gradle/
+**/build/
+**/captures/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+.cxx/
+*.keystore
+*.jks
+google-services.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+backend/.env
+backend/storage/
+backend/*.db
+backend/*.sqlite
+
+# Secrets
+.env
+.env.local
+*.pem
+credentials.json
+service-account.json
+
+# Logs / temp
+*.log
+*.tmp
+.android/
+.kotlin/
