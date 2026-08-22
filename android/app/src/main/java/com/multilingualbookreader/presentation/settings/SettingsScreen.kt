@@ -4,13 +4,15 @@ package com.multilingualbookreader.presentation.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
@@ -24,25 +26,25 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.model.OcrRoute
 import com.multilingualbookreader.domain.model.ThemeMode
+import com.multilingualbookreader.presentation.components.FilterChipItem
+import com.multilingualbookreader.presentation.components.ReaderTopBar
 import com.multilingualbookreader.presentation.components.ScreenHeader
 import com.multilingualbookreader.presentation.components.SecondaryButton
 import com.multilingualbookreader.presentation.components.SettingsRow
@@ -136,10 +138,46 @@ fun SettingsScreen(
         ) {
             Text("Settings", style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
             SettingsSection("Reading preferences") {
-                SettingsRow("Page reading", Icons.Outlined.DocumentScanner, ocrRoute.label()) { picker = SettingsPicker.Ocr }
-                SettingsRow("Default language", Icons.Outlined.Language, languageTag.labelLanguage()) { picker = SettingsPicker.Language }
-                SettingsRow("Text size", Icons.Outlined.TextFields, "${(fontScale * 100).toInt()}%") { picker = SettingsPicker.Font }
-                SettingsRow("Theme", Icons.Outlined.Palette, theme.label()) { picker = SettingsPicker.Theme }
+                SettingsChoiceRow(
+                    label = "Page reading",
+                    icon = Icons.Outlined.DocumentScanner,
+                    value = ocrRoute.label(),
+                    expanded = picker == SettingsPicker.Ocr,
+                    onToggle = { picker = picker.toggle(SettingsPicker.Ocr) },
+                    options = OcrRoute.entries.map { it.name to it.label() },
+                    selected = ocrRoute.name,
+                    onSelect = { onOcr(OcrRoute.valueOf(it)); picker = null },
+                )
+                SettingsChoiceRow(
+                    label = "Default language",
+                    icon = Icons.Outlined.Language,
+                    value = languageTag.labelLanguage(),
+                    expanded = picker == SettingsPicker.Language,
+                    onToggle = { picker = picker.toggle(SettingsPicker.Language) },
+                    options = listOf("AUTO" to "Auto detect", "en" to "English", "hi" to "Hindi", "te" to "Telugu"),
+                    selected = languageTag,
+                    onSelect = { onLanguage(it); picker = null },
+                )
+                SettingsChoiceRow(
+                    label = "Text size",
+                    icon = Icons.Outlined.TextFields,
+                    value = "${(fontScale * 100).toInt()}%",
+                    expanded = picker == SettingsPicker.Font,
+                    onToggle = { picker = picker.toggle(SettingsPicker.Font) },
+                    options = listOf(1.0f, 1.25f, 1.5f, 1.75f).map { it.toString() to "${(it * 100).toInt()}%" },
+                    selected = fontScale.toString(),
+                    onSelect = { onFont(it.toFloat()); picker = null },
+                )
+                SettingsChoiceRow(
+                    label = "Theme",
+                    icon = Icons.Outlined.Palette,
+                    value = theme.label(),
+                    expanded = picker == SettingsPicker.Theme,
+                    onToggle = { picker = picker.toggle(SettingsPicker.Theme) },
+                    options = ThemeMode.entries.map { it.name to it.label() },
+                    selected = theme.name,
+                    onSelect = { onTheme(ThemeMode.valueOf(it)); picker = null },
+                )
                 ToggleRow("High contrast", Icons.Outlined.Contrast, highContrast, onContrast)
                 ToggleRow("Reduce motion", Icons.Outlined.MotionPhotosOff, reduceMotion, onMotion)
             }
@@ -156,19 +194,6 @@ fun SettingsScreen(
             )
         }
     }
-    when (picker) {
-        SettingsPicker.Theme -> ChoiceDialog("Theme", ThemeMode.entries.map { it.name to it.label() }, theme.name, { onTheme(ThemeMode.valueOf(it)); picker = null }, { picker = null })
-        SettingsPicker.Font -> ChoiceDialog("Text size", listOf(1.0f, 1.25f, 1.5f, 1.75f).map { it.toString() to "${(it * 100).toInt()}%" }, fontScale.toString(), { onFont(it.toFloat()); picker = null }, { picker = null })
-        SettingsPicker.Ocr -> ChoiceDialog("Page reading", OcrRoute.entries.map { it.name to it.label() }, ocrRoute.name, { onOcr(OcrRoute.valueOf(it)); picker = null }, { picker = null })
-        SettingsPicker.Language -> ChoiceDialog(
-            "Default language",
-            listOf("AUTO" to "Auto detect", "en" to "English", "hi" to "Hindi", "te" to "Telugu"),
-            languageTag,
-            { onLanguage(it); picker = null },
-            { picker = null },
-        )
-        null -> Unit
-    }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -184,6 +209,9 @@ fun SettingsScreen(
 
 private enum class SettingsPicker { Theme, Font, Ocr, Language }
 
+private fun SettingsPicker?.toggle(target: SettingsPicker): SettingsPicker? =
+    if (this == target) null else target
+
 private fun ThemeMode.label() = name.lowercase().replaceFirstChar { it.titlecase() }
 private fun OcrRoute.label() = when (this) {
     OcrRoute.AUTO -> "Auto"
@@ -197,28 +225,38 @@ private fun String.labelLanguage() = when (this) {
     else -> "Auto detect"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChoiceDialog(
-    title: String,
+private fun SettingsChoiceRow(
+    label: String,
+    icon: ImageVector,
+    value: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
     options: List<Pair<String, String>>,
     selected: String,
     onSelect: (String) -> Unit,
-    onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                options.forEach { (value, label) ->
-                    TextButton(onClick = { onSelect(value) }) {
-                        Text(if (value == selected) "●  $label" else "○  $label")
-                    }
+    Column(Modifier.fillMaxWidth()) {
+        SettingsRow(label, icon, value, onClick = onToggle)
+        if (expanded) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 34.dp, end = 4.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { (id, optionLabel) ->
+                    FilterChipItem(
+                        label = optionLabel,
+                        selected = id == selected,
+                        onClick = { onSelect(id) },
+                    )
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
+        }
+    }
 }
 
 @Composable
@@ -244,12 +282,7 @@ fun UpdatesScreen(
     val brand = LocalBrand.current
     Scaffold(
         containerColor = brand.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Updates") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        topBar = { ReaderTopBar(title = "Updates", onBack = onBack) },
     ) { padding ->
         Column(Modifier.padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             UpdateSection(state = updateState, manager = updateManager, onCheck = onCheck, onDownload = onDownload)
@@ -287,12 +320,7 @@ fun PrivacyScreen(
     val brand = LocalBrand.current
     Scaffold(
         containerColor = brand.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Privacy") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        topBar = { ReaderTopBar(title = "Privacy", onBack = onBack) },
     ) { padding ->
         Column(Modifier.padding(padding).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ScreenHeader("Your books stay on this phone")
@@ -321,12 +349,7 @@ private fun SimpleInfoScreen(title: String, body: String, onBack: () -> Unit) {
     val brand = LocalBrand.current
     Scaffold(
         containerColor = brand.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
+        topBar = { ReaderTopBar(title = title, onBack = onBack) },
     ) { padding ->
         Column(Modifier.padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(body, color = brand.textSecondary, style = MaterialTheme.typography.bodyLarge)

@@ -58,11 +58,13 @@ fun BookReaderNavHost() {
         bottomBar = {
             if (showBottomBar) {
                 ReaderBottomBar(currentRoute = route) { tab ->
-                    if (route != tab.route) {
+                    if (appTabForRoute(route) == tab) {
+                        nav.popBackStack(tab.route, inclusive = false)
+                    } else {
                         nav.navigate(tab.route) {
-                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = false }
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = false
                         }
                     }
                 }

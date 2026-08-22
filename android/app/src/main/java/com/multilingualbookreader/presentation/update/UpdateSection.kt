@@ -11,7 +11,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.multilingualbookreader.presentation.components.BookReaderCard
 import com.multilingualbookreader.presentation.components.PrimaryButton
-import com.multilingualbookreader.presentation.components.SecondaryButton
 import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.update.AppUpdateManager
 import com.multilingualbookreader.update.UpdateUiState
@@ -38,7 +37,7 @@ fun UpdateSection(
                 LinearProgressIndicator(progress = { state.progressPercent / 100f }, modifier = Modifier, color = brand.accent, trackColor = brand.border)
             }
         }
-        SecondaryButton(if (state.checking) "Checking…" else "Check for update", onCheck, enabled = !state.checking && !state.downloading)
+        PrimaryButton(if (state.checking) "Checking…" else "Check for update", onCheck, enabled = !state.checking && !state.downloading)
         state.available?.let { update ->
             Text("Latest: ${update.versionName}", color = brand.textSecondary, style = MaterialTheme.typography.bodyMedium)
             if (update.notes.isNotBlank()) {

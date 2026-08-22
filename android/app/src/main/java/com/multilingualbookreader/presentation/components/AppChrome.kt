@@ -36,7 +36,14 @@ enum class AppTab(
     Settings("settings", "Settings", Icons.Outlined.Settings),
 }
 
-fun appTabForRoute(route: String?): AppTab? = AppTab.entries.firstOrNull { it.route == route }
+fun appTabForRoute(route: String?): AppTab? = when (route) {
+    null -> null
+    "home" -> AppTab.Home
+    "library" -> AppTab.Library
+    "voice", "voice-test" -> AppTab.Voice
+    "settings", "privacy", "updates", "help", "about" -> AppTab.Settings
+    else -> null
+}
 
 @Composable
 fun ReaderBottomBar(

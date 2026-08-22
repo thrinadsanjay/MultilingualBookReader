@@ -11,14 +11,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -202,6 +205,29 @@ fun FilterChipItem(
 }
 
 @Composable
+fun ReaderTopBar(
+    title: String,
+    onBack: (() -> Unit)? = null,
+) {
+    val brand = LocalBrand.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(brand.background)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = brand.textPrimary)
+            }
+        }
+        Text(title, style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
+    }
+}
+
+@Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     val brand = LocalBrand.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -222,7 +248,7 @@ fun SettingsRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(LocalDimens.current.touch)
+            .heightIn(min = LocalDimens.current.touch)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
     ) {
