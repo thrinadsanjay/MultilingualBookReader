@@ -64,10 +64,12 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 
 Android cannot silently replace an installed app, so how you get updates depends on what the phone allows. Settings → **Check for updates** detects this and shows only the route that can actually succeed.
 
+Settings → **Check for updates** shows one button whose label follows the state: *Check for updates* → *Download update v0.1.8* → *Downloading… 45%* → *Install update*. Failures swap it for a retry that resumes the step that failed.
+
 | Phone state | What the app offers |
 | --- | --- |
 | Installed from Google Play | Play updates it in the background; the button opens the Play listing |
-| Sideloading allowed | Download the APK and install it in place |
+| Sideloading allowed | Download and install the update in place |
 | Install permission not granted yet | One tap to Android's "allow installs" screen |
 | Advanced Protection on | Explains the block and points at Play; no download that would fail |
 

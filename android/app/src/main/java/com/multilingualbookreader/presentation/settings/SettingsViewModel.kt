@@ -11,8 +11,11 @@ import com.multilingualbookreader.domain.repository.VoiceRepository
 import com.multilingualbookreader.network.BookReaderApi
 import com.multilingualbookreader.network.EncryptedTokenStore
 import com.multilingualbookreader.update.AppUpdateManager
+import com.multilingualbookreader.update.UpdateActionKind
+import com.multilingualbookreader.update.UpdatePhase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -29,6 +32,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
     val state = settings.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
     val updateState = updates.state
+    private var downloadJob: Job? = null
 
     fun setTheme(mode: ThemeMode) = update { it.copy(themeMode = mode) }
     fun setFont(scale: Float) = update { it.copy(fontScale = scale) }
@@ -51,13 +55,33 @@ class SettingsViewModel @Inject constructor(
 
     fun signOut() = tokens.clear()
 
-    fun checkUpdate() {
-        viewModelScope.launch { updates.check() }
+    fun installChannel() = updates.installChannel()
+
+    /** Every update button routes here, so the phase always drives what actually happens. */
+    fun onUpdateAction(kind: UpdateActionKind) {
+        when (kind) {
+            UpdateActionKind.CHECK -> {
+                downloadJob?.cancel()
+                downloadJob = viewModelScope.launch { updates.check() }
+            }
+            UpdateActionKind.DOWNLOAD -> {
+                downloadJob?.cancel()
+                downloadJob = viewModelScope.launch { updates.download() }
+            }
+            UpdateActionKind.INSTALL -> updates.startInstall()
+            UpdateActionKind.OPEN_PLAY -> updates.openPlayStore()
+            UpdateActionKind.GRANT_PERMISSION -> updates.openInstallPermissionSettings()
+            UpdateActionKind.CANCEL -> {
+                downloadJob?.cancel()
+                downloadJob = null
+                if (updates.state.value.phase is UpdatePhase.Failed) updates.dismissFailure() else updates.cancelDownload()
+            }
+            UpdateActionKind.BUSY -> Unit
+        }
     }
 
-    fun downloadUpdate() {
-        viewModelScope.launch { updates.download() }
-    }
+    /** Called when the screen resumes so a cancelled system install does not stay "Installing…". */
+    fun onUpdateScreenResumed() = updates.installerReturned()
 
     fun deleteAllData() {
         viewModelScope.launch {

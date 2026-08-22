@@ -13,6 +13,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.multilingualbookreader.navigation.TabCommand
+import com.multilingualbookreader.navigation.TabNavigationPolicy
 import com.multilingualbookreader.presentation.components.AppTab
 import com.multilingualbookreader.presentation.components.ReaderBottomBar
 import com.multilingualbookreader.presentation.components.appTabForRoute
@@ -58,10 +60,17 @@ fun BookReaderNavHost() {
         bottomBar = {
             if (showBottomBar) {
                 ReaderBottomBar(currentRoute = route) { tab ->
-                    if (appTabForRoute(route) == tab) {
-                        nav.popBackStack(tab.route, inclusive = false)
-                    } else {
-                        nav.navigate(tab.route) {
+                    val command = TabNavigationPolicy.onTabSelected(
+                        currentRoute = route,
+                        currentTabRoute = appTabForRoute(route)?.route,
+                        targetTabRoute = tab.route,
+                    )
+                    when (command) {
+                        // Already the visible root; navigating again would stack a duplicate.
+                        TabCommand.Stay -> Unit
+                        // One step back to the tab root, so Settings never lands on Updates.
+                        is TabCommand.ReturnToTabRoot -> nav.popBackStack(command.route, inclusive = false)
+                        is TabCommand.SwitchTab -> nav.navigate(command.route) {
                             popUpTo(nav.graph.findStartDestination().id) { saveState = false }
                             launchSingleTop = true
                             restoreState = false

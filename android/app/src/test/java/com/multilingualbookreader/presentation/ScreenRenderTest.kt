@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.multilingualbookreader.domain.model.Book
@@ -24,11 +25,12 @@ import com.multilingualbookreader.presentation.settings.UpdatesScreen
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
 import com.multilingualbookreader.presentation.voice.VoiceScreen
 import com.multilingualbookreader.presentation.voice.VoiceUiState
-import com.multilingualbookreader.update.AppUpdateManager
+import com.multilingualbookreader.update.AvailableUpdate
 import com.multilingualbookreader.update.InstallChannel
+import com.multilingualbookreader.update.UpdateMessages
+import com.multilingualbookreader.update.UpdatePhase
+import com.multilingualbookreader.update.UpdateStage
 import com.multilingualbookreader.update.UpdateUiState
-import io.mockk.every
-import io.mockk.mockk
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
@@ -46,6 +48,27 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
 class ScreenRenderTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    private val pendingUpdate = AvailableUpdate(
+        versionCode = 9,
+        versionName = "v0.1.8",
+        apkUrl = "https://example.test/build",
+        apkName = "BookReader-9-debug.apk",
+        notes = "versionCode=9\nImproved OCR\nImproved voice processing\nUI improvements",
+    )
+
+    private val updatePhases = listOf(
+        "idle" to UpdatePhase.Idle,
+        "checking" to UpdatePhase.Checking,
+        "uptodate" to UpdatePhase.UpToDate,
+        "available" to UpdatePhase.Available(pendingUpdate),
+        "downloading" to UpdatePhase.Downloading(pendingUpdate, 45),
+        "downloaded" to UpdatePhase.Downloaded(pendingUpdate),
+        "installing" to UpdatePhase.Installing(pendingUpdate),
+        "offline" to UpdatePhase.Failed(UpdateStage.CHECK, null, UpdateMessages.OFFLINE),
+        "download-failed" to UpdatePhase.Failed(UpdateStage.DOWNLOAD, pendingUpdate, UpdateMessages.DOWNLOAD_FAILED),
+        "install-failed" to UpdatePhase.Failed(UpdateStage.INSTALL, pendingUpdate, UpdateMessages.INSTALL_FAILED),
+    )
 
     private val sampleBook = LibraryBook(
         book = Book(
@@ -203,33 +226,59 @@ class ScreenRenderTest {
     }
 
     @Test
-    fun updatesBlockedByAdvancedProtectionDark() {
-        val manager = mockk<AppUpdateManager>(relaxed = true)
-        every { manager.installChannel() } returns InstallChannel.BLOCKED
-        render("updates-blocked-dark", dark = true) {
-            UpdatesScreen(
-                updateState = UpdateUiState(message = "You are up to date."),
-                updateManager = manager,
-                onCheck = {},
-                onDownload = {},
-                onBack = {},
-            )
+    fun updateStatesDark() = renderEveryUpdatePhase(dark = true, suffix = "dark")
+
+    @Test
+    fun updateStatesLight() = renderEveryUpdatePhase(dark = false, suffix = "light")
+
+    /**
+     * Walks the whole state machine inside one composition, because a test may only call
+     * setContent once. The clock is stepped manually so the busy-state spinners cannot stall
+     * waitForIdle.
+     */
+    private fun renderEveryUpdatePhase(dark: Boolean, suffix: String) {
+        val phase = mutableStateOf<UpdatePhase>(UpdatePhase.Idle)
+        composeRule.setContent {
+            BookReaderTheme(darkTheme = dark, highContrast = false, fontScale = 1.0f) {
+                UpdatesScreen(
+                    updateState = UpdateUiState(installedVersionName = "0.1.7", installedVersionCode = 8, phase = phase.value),
+                    channel = InstallChannel.DIRECT,
+                    onAction = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.mainClock.autoAdvance = false
+        updatePhases.forEach { (name, next) ->
+            phase.value = next
+            composeRule.mainClock.advanceTimeByFrame()
+            composeRule.mainClock.advanceTimeByFrame()
+            capture("updates-$name-$suffix")
         }
     }
 
     @Test
-    fun updatesFromPlayLight() {
-        val manager = mockk<AppUpdateManager>(relaxed = true)
-        every { manager.installChannel() } returns InstallChannel.PLAY
-        render("updates-play-light", dark = false) {
-            UpdatesScreen(
-                updateState = UpdateUiState(message = "Google Play delivers updates for this install."),
-                updateManager = manager,
-                onCheck = {},
-                onDownload = {},
-                onBack = {},
-            )
-        }
+    fun updatesBlockedByAdvancedProtection() {
+        renderUpdate("updates-blocked-dark", dark = true, phase = UpdatePhase.UpToDate, channel = InstallChannel.BLOCKED)
+    }
+
+    @Test
+    fun updatesFromPlay() {
+        renderUpdate("updates-play-light", dark = false, phase = UpdatePhase.Idle, channel = InstallChannel.PLAY)
+    }
+
+    private fun renderUpdate(
+        name: String,
+        dark: Boolean,
+        phase: UpdatePhase,
+        channel: InstallChannel = InstallChannel.DIRECT,
+    ) = render(name, dark) {
+        UpdatesScreen(
+            updateState = UpdateUiState(installedVersionName = "0.1.7", installedVersionCode = 8, phase = phase),
+            channel = channel,
+            onAction = {},
+            onBack = {},
+        )
     }
 
     private fun render(name: String, dark: Boolean, content: @Composable () -> Unit) {
@@ -237,7 +286,10 @@ class ScreenRenderTest {
             BookReaderTheme(darkTheme = dark, highContrast = false, fontScale = 1.0f) { content() }
         }
         composeRule.waitForIdle()
+        capture(name)
+    }
 
+    private fun capture(name: String) {
         val view = composeRule.activity.window.decorView
         val width = view.width.takeIf { it > 0 } ?: 1080
         val height = view.height.takeIf { it > 0 } ?: 2340

@@ -9,11 +9,13 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.common.AppLog
+import com.multilingualbookreader.network.ConnectivityObserver
 import com.multilingualbookreader.network.PlainHttp
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,37 +25,39 @@ import okhttp3.Request
 import retrofit2.HttpException
 
 data class UpdateUiState(
-    val currentVersion: String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-    val checking: Boolean = false,
-    val downloading: Boolean = false,
-    val progressPercent: Int = 0,
-    val available: AvailableUpdate? = null,
-    val downloadedFile: File? = null,
-    val message: String? = null,
-)
+    val installedVersionName: String = BuildConfig.VERSION_NAME,
+    val installedVersionCode: Int = BuildConfig.VERSION_CODE,
+    val phase: UpdatePhase = UpdatePhase.Idle,
+) {
+    val installedLabel: String = "v$installedVersionName ($installedVersionCode)"
+}
 
 @Singleton
 class AppUpdateManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val api: GitHubReleaseApi,
+    private val connectivity: ConnectivityObserver,
     @PlainHttp private val http: OkHttpClient,
 ) {
     private val _state = MutableStateFlow(UpdateUiState())
     val state: StateFlow<UpdateUiState> = _state
 
+    private var downloadedApk: File? = null
+
+    private fun moveTo(phase: UpdatePhase) {
+        _state.value = _state.value.copy(phase = phase)
+    }
+
     suspend fun check() {
-        if (installChannel() == InstallChannel.PLAY) {
-            _state.value = _state.value.copy(
-                checking = false,
-                available = null,
-                message = "Google Play delivers updates for this install. Open Play to get the newest build.",
-            )
+        if (_state.value.phase is UpdatePhase.Checking) return
+        if (!connectivity.isOnline) {
+            moveTo(UpdatePhase.Failed(UpdateStage.CHECK, null, UpdateMessages.OFFLINE))
             return
         }
-        _state.value = _state.value.copy(checking = true, message = "Checking for an update…")
+        moveTo(UpdatePhase.Checking)
         runCatching {
             val releases = api.releases(BuildConfig.UPDATE_OWNER, BuildConfig.UPDATE_REPO)
-            val newest = AppUpdateParser.chooseNewest(
+            AppUpdateParser.chooseNewest(
                 currentVersionCode = BuildConfig.VERSION_CODE,
                 releases = releases.map { release ->
                     AppUpdateParser.ReleaseRef(
@@ -65,40 +69,34 @@ class AppUpdateManager @Inject constructor(
                     )
                 },
             )
-            if (newest == null) {
-                _state.value = _state.value.copy(
-                    checking = false,
-                    available = null,
-                    message = "You already have the latest test build.",
-                )
-            } else {
-                _state.value = _state.value.copy(
-                    checking = false,
-                    available = newest,
-                    downloadedFile = null,
-                    message = "Version ${newest.versionName} is ready to install.",
-                )
-            }
-        }.onFailure {
+        }.onSuccess { newest ->
+            downloadedApk = null
+            moveTo(if (newest == null) UpdatePhase.UpToDate else UpdatePhase.Available(newest))
+        }.onFailure { error ->
             AppLog.w("update_check_failed")
-            val message = when ((it as? HttpException)?.code()) {
-                403, 429 -> "GitHub is rate-limiting update checks. Try again in a few minutes."
-                404 -> "Could not find published test builds for this app."
-                else -> "Could not check for updates. Connect to the internet and try again."
+            val message = when ((error as? HttpException)?.code()) {
+                403, 429 -> UpdateMessages.RATE_LIMITED
+                404 -> UpdateMessages.NOT_PUBLISHED
+                else -> UpdateMessages.CHECK_FAILED
             }
-            _state.value = _state.value.copy(checking = false, message = message)
+            moveTo(UpdatePhase.Failed(UpdateStage.CHECK, null, message))
         }
     }
 
-    suspend fun download(): File? {
-        val update = _state.value.available ?: return null
-        _state.value = _state.value.copy(downloading = true, progressPercent = 0, message = "Downloading update…")
-        return withContext(Dispatchers.IO) {
+    /** Downloads the pending update. The transport is an APK, but the UI only ever says "update". */
+    suspend fun download() {
+        val update = pendingUpdate() ?: return
+        if (!connectivity.isOnline) {
+            moveTo(UpdatePhase.Failed(UpdateStage.DOWNLOAD, update, UpdateMessages.OFFLINE))
+            return
+        }
+        moveTo(UpdatePhase.Downloading(update, 0))
+        withContext(Dispatchers.IO) {
             runCatching {
                 val request = Request.Builder().url(update.apkUrl).build()
                 http.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) error("download failed")
-                    val body = response.body ?: error("empty apk")
+                    val body = response.body ?: error("empty body")
                     val total = body.contentLength()
                     val dir = File(context.cacheDir, "updates").apply { mkdirs() }
                     val file = File(dir, "BookReader-update.apk")
@@ -112,28 +110,73 @@ class AppUpdateManager @Inject constructor(
                                 output.write(buffer, 0, n)
                                 read += n
                                 if (total > 0) {
-                                    _state.value = _state.value.copy(progressPercent = ((read * 100) / total).toInt())
+                                    moveTo(UpdatePhase.Downloading(update, ((read * 100) / total).toInt()))
                                 }
                             }
                         }
                     }
-                    _state.value = _state.value.copy(
-                        downloading = false,
-                        downloadedFile = file,
-                        progressPercent = 100,
-                        message = "Download finished. Tap Install to update.",
-                    )
                     file
                 }
-            }.getOrElse {
+            }.onSuccess { file ->
+                downloadedApk = file
+                moveTo(UpdatePhase.Downloaded(update))
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
                 AppLog.w("update_download_failed")
-                _state.value = _state.value.copy(
-                    downloading = false,
-                    message = "The update could not be downloaded.",
-                )
-                null
+                downloadedApk = null
+                moveTo(UpdatePhase.Failed(UpdateStage.DOWNLOAD, update, UpdateMessages.DOWNLOAD_FAILED))
             }
         }
+    }
+
+    /** Hands the downloaded update to the system installer. */
+    fun startInstall() {
+        val update = pendingUpdate() ?: return
+        val file = downloadedApk
+        if (file == null || !file.exists()) {
+            moveTo(UpdatePhase.Failed(UpdateStage.DOWNLOAD, update, UpdateMessages.DOWNLOAD_FAILED))
+            return
+        }
+        moveTo(UpdatePhase.Installing(update))
+        runCatching { context.startActivity(installIntent(file)) }.onFailure {
+            AppLog.w("update_install_launch_failed")
+            moveTo(UpdatePhase.Failed(UpdateStage.INSTALL, update, UpdateMessages.INSTALL_FAILED))
+        }
+    }
+
+    /**
+     * A successful install replaces this process, so coming back still in [UpdatePhase.Installing]
+     * means the user cancelled or the installer refused it.
+     */
+    fun installerReturned() {
+        val phase = _state.value.phase
+        if (phase is UpdatePhase.Installing) {
+            moveTo(UpdatePhase.Failed(UpdateStage.INSTALL, phase.update, UpdateMessages.INSTALL_FAILED))
+        }
+    }
+
+    fun cancelDownload() {
+        val update = pendingUpdate()
+        downloadedApk = null
+        moveTo(if (update == null) UpdatePhase.Idle else UpdatePhase.Available(update))
+    }
+
+    /** Clears an error without throwing away a download that already succeeded. */
+    fun dismissFailure() {
+        val phase = _state.value.phase as? UpdatePhase.Failed ?: return
+        val update = phase.update ?: return moveTo(UpdatePhase.Idle)
+        moveTo(
+            if (downloadedApk?.exists() == true) UpdatePhase.Downloaded(update) else UpdatePhase.Available(update),
+        )
+    }
+
+    private fun pendingUpdate(): AvailableUpdate? = when (val phase = _state.value.phase) {
+        is UpdatePhase.Available -> phase.update
+        is UpdatePhase.Downloading -> phase.update
+        is UpdatePhase.Downloaded -> phase.update
+        is UpdatePhase.Installing -> phase.update
+        is UpdatePhase.Failed -> phase.update
+        else -> null
     }
 
     fun unknownSourcesRestricted(): Boolean {
@@ -169,15 +212,6 @@ class AppUpdateManager @Inject constructor(
         unknownSourcesRestricted = unknownSourcesRestricted(),
     )
 
-    fun canInstallFromThisApp(): Boolean = installChannel() == InstallChannel.DIRECT
-
-    fun browserDownloadIntent(url: String? = _state.value.available?.apkUrl): Intent? {
-        val target = url ?: return null
-        return Intent(Intent.ACTION_VIEW, target.toUri()).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
     /** Opens this app's Play listing, where an update installs even while Advanced Protection is on. */
     fun openPlayStore() {
         val market = Intent(Intent.ACTION_VIEW, "market://details?id=${context.packageName}".toUri())
@@ -189,10 +223,12 @@ class AppUpdateManager @Inject constructor(
             .onFailure { AppLog.w("play_store_unavailable") }
     }
 
-    fun installPermissionIntent(): Intent {
-        return Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+    fun openInstallPermissionSettings() {
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
             data = "package:${context.packageName}".toUri()
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+        runCatching { context.startActivity(intent) }.onFailure { AppLog.w("install_settings_unavailable") }
     }
 
     fun installIntent(file: File): Intent {

@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +47,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.model.OcrRoute
@@ -62,7 +66,9 @@ import com.multilingualbookreader.presentation.components.ToggleRow
 import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.presentation.theme.LocalDimens
 import com.multilingualbookreader.presentation.update.UpdateSection
-import com.multilingualbookreader.update.AppUpdateManager
+import com.multilingualbookreader.update.InstallChannel
+import com.multilingualbookreader.update.UpdateActionKind
+import com.multilingualbookreader.update.UpdatePhase
 import com.multilingualbookreader.update.UpdateUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +84,9 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     SettingsScreen(
+        updateSummary = updateSummary(updateState.phase, updateState.installedVersionName),
         theme = state.themeMode,
         fontScale = state.fontScale,
         highContrast = state.highContrast,
@@ -132,6 +140,7 @@ fun SettingsScreen(
     onAbout: () -> Unit = {},
     onDeleteAll: () -> Unit = {},
     showBack: Boolean = true,
+    updateSummary: String = "v${BuildConfig.VERSION_NAME}",
 ) {
     val brand = LocalBrand.current
     val dimens = LocalDimens.current
@@ -145,7 +154,15 @@ fun SettingsScreen(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = dimens.screen, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text("Settings", style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
+            Column {
+                Text("Settings", style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Adjust text size, contrast, and how pages are read.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = brand.textSecondary,
+                )
+            }
             SettingsSection("Reading preferences") {
                 SettingsChoiceRow(
                     label = "Page reading",
@@ -191,12 +208,12 @@ fun SettingsScreen(
                 ToggleRow("Reduce motion", Icons.Outlined.MotionPhotosOff, reduceMotion, onMotion)
             }
             SettingsSection("App") {
-                SettingsRow("Check for updates", Icons.Outlined.SystemUpdate, "v${BuildConfig.VERSION_NAME}", onClick = onUpdates)
+                SettingsRow("Check for updates", Icons.Outlined.SystemUpdate, updateSummary, onClick = onUpdates)
                 SettingsRow("Privacy", Icons.Outlined.PrivacyTip, onClick = onPrivacy)
                 SettingsRow("Help & feedback", Icons.AutoMirrored.Outlined.HelpOutline, onClick = onHelp)
                 SettingsRow("About", Icons.Outlined.Info, onClick = onAbout)
             }
-            BookReaderCard {
+            SettingsSection("Data") {
                 DangerRow(label = "Delete all data", onClick = { confirmDelete = true })
             }
             Spacer(Modifier.height(4.dp))
@@ -283,14 +300,31 @@ private fun SettingsChoiceRow(
     }
 }
 
+private fun updateSummary(phase: UpdatePhase, installedVersionName: String): String = when (phase) {
+    is UpdatePhase.Available,
+    is UpdatePhase.Downloading,
+    is UpdatePhase.Downloaded,
+    is UpdatePhase.Installing,
+    -> "Update available"
+    else -> "v$installedVersionName"
+}
+
 @Composable
 fun UpdatesRoute(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // A finished install replaces this process, so resuming here means the installer was dismissed.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.onUpdateScreenResumed()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     UpdatesScreen(
         updateState = updateState,
-        updateManager = viewModel.updates,
-        onCheck = viewModel::checkUpdate,
-        onDownload = viewModel::downloadUpdate,
+        channel = remember(updateState.phase) { viewModel.installChannel() },
+        onAction = viewModel::onUpdateAction,
         onBack = onBack,
     )
 }
@@ -298,9 +332,8 @@ fun UpdatesRoute(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMode
 @Composable
 fun UpdatesScreen(
     updateState: UpdateUiState,
-    updateManager: AppUpdateManager,
-    onCheck: () -> Unit,
-    onDownload: () -> Unit,
+    channel: InstallChannel,
+    onAction: (UpdateActionKind) -> Unit,
     onBack: () -> Unit,
 ) {
     val brand = LocalBrand.current
@@ -308,8 +341,11 @@ fun UpdatesScreen(
         containerColor = brand.background,
         topBar = { ReaderTopBar(title = "Updates", onBack = onBack) },
     ) { padding ->
-        Column(Modifier.padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            UpdateSection(state = updateState, manager = updateManager, onCheck = onCheck, onDownload = onDownload)
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            UpdateSection(state = updateState, channel = channel, onAction = onAction)
         }
     }
 }
