@@ -2,6 +2,7 @@ package com.multilingualbookreader.presentation.pdf
 
 import android.app.Application
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
@@ -60,7 +61,7 @@ class PdfImportViewModel @Inject constructor(
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     temp.outputStream().use { output -> input.copyTo(output) }
                 } ?: error("Could not open that file.")
-                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Imported book.pdf"
+                val name = displayName(uri)
                 val request = OneTimeWorkRequestBuilder<PdfImportWorker>()
                     .setInputData(workDataOf(PdfImportWorker.KEY_PATH to temp.absolutePath, PdfImportWorker.KEY_NAME to name))
                     .build()
@@ -81,5 +82,25 @@ class PdfImportViewModel @Inject constructor(
                 _state.value = PdfImportUiState(error = "This file is not a readable PDF.")
             }
         }
+    }
+
+    /**
+     * Storage URIs end in an opaque document id, so the last path segment produced titles like
+     * "document:108102". The provider knows the real file name.
+     */
+    private fun displayName(uri: Uri): String {
+        val resolver = getApplication<Application>().contentResolver
+        val fromProvider = runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+            }
+        }.getOrNull()
+        val candidate = fromProvider?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment?.substringAfterLast('/')
+        return candidate
+            ?.substringAfterLast(':')
+            ?.takeIf { it.isNotBlank() && !it.all(Char::isDigit) }
+            ?: "Imported book.pdf"
     }
 }

@@ -32,6 +32,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.multilingualbookreader.domain.model.BookPage
+import com.multilingualbookreader.domain.model.ProcessingStatus
 import com.multilingualbookreader.presentation.components.LargeButton
 
 @Composable
@@ -105,11 +107,14 @@ fun ReaderScreen(
             Modifier.fillMaxSize().padding(padding).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Page ${(state.pageIndex + 1).coerceAtLeast(1)} / ${state.pages.size.coerceAtLeast(1)}", style = MaterialTheme.typography.titleLarge)
+            Text(
+                if (state.pages.isEmpty()) "No pages yet" else "Page ${state.pageIndex + 1} / ${state.pages.size}",
+                style = MaterialTheme.typography.titleLarge,
+            )
             val text = page?.text.orEmpty()
             val annotated = buildAnnotatedString {
                 if (current == null || text.isEmpty()) {
-                    append(text.ifBlank { "This page does not have text yet." })
+                    append(text.ifBlank { emptyPageMessage(state, page) })
                 } else {
                     val start = current.startOffset.coerceIn(0, text.length)
                     val end = current.endOffset.coerceIn(start, text.length)
@@ -165,4 +170,17 @@ fun ReaderScreen(
             }
         }
     }
+}
+
+/**
+ * Explains why a page is blank. "No text yet" used to appear whether the import produced nothing,
+ * recognition failed, or the page really was empty, which gave no clue what to do next.
+ */
+private fun emptyPageMessage(state: ReaderUiState, page: BookPage?): String = when {
+    state.book == null -> "Opening this book…"
+    page == null -> "This book has no pages yet. Scan a page or import a PDF again."
+    page.processingStatus == ProcessingStatus.PROCESSING -> "Still reading this page…"
+    page.processingStatus == ProcessingStatus.FAILED ->
+        page.errorMessage ?: "This page could not be read. Try scanning it again in better light."
+    else -> "This page has no text on it."
 }

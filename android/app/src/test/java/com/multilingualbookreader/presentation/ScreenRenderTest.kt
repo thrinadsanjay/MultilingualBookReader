@@ -11,15 +11,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.multilingualbookreader.domain.model.Book
+import com.multilingualbookreader.domain.model.BookPage
 import com.multilingualbookreader.domain.model.BookSource
 import com.multilingualbookreader.domain.model.LibraryBook
 import com.multilingualbookreader.domain.model.OcrRoute
+import com.multilingualbookreader.domain.model.ProcessingStatus
 import com.multilingualbookreader.domain.model.SupportedLanguage
 import com.multilingualbookreader.domain.model.ThemeMode
 import com.multilingualbookreader.presentation.components.ReaderBottomBar
 import com.multilingualbookreader.presentation.home.HomeScreen
 import com.multilingualbookreader.presentation.home.HomeUiState
 import com.multilingualbookreader.presentation.library.LibraryScreen
+import com.multilingualbookreader.presentation.reader.ReaderScreen
+import com.multilingualbookreader.presentation.reader.ReaderUiState
 import com.multilingualbookreader.presentation.settings.AboutRoute
 import com.multilingualbookreader.presentation.settings.SettingsScreen
 import com.multilingualbookreader.presentation.settings.UpdatesScreen
@@ -177,6 +181,55 @@ class ScreenRenderTest {
     @Test
     fun aboutDark() = render("about-dark", dark = true) {
         AboutRoute(onBack = {})
+    }
+
+    @Test
+    fun readerWithAnUnreadablePage() = render("reader-failed-page-dark", dark = true) {
+        ReaderScreenPreview(
+            ReaderUiState(
+                book = sampleBook.book,
+                pages = listOf(
+                    BookPage(
+                        id = "page-1",
+                        bookId = sampleBook.book.id,
+                        pageNumber = 1,
+                        imagePath = null,
+                        text = "",
+                        language = SupportedLanguage.UNKNOWN,
+                        processingStatus = ProcessingStatus.FAILED,
+                        errorMessage = "This scanned page could not be read.",
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun readerWithNoPages() = render("reader-no-pages-light", dark = false) {
+        ReaderScreenPreview(ReaderUiState(book = sampleBook.book, pages = emptyList()))
+    }
+
+    @Composable
+    private fun ReaderScreenPreview(state: ReaderUiState) {
+        ReaderScreen(
+            state = state,
+            onBack = {},
+            onSearch = {},
+            onPlay = {},
+            onPause = {},
+            onResume = {},
+            onPrev = {},
+            onNext = {},
+            onSkipParagraph = {},
+            onRepeat = {},
+            onRestart = {},
+            onSpeed = {},
+            onPrevPage = {},
+            onNextPage = {},
+            onBookmark = {},
+            onNoteDraft = {},
+            onSaveNote = {},
+        )
     }
 
     @Test
