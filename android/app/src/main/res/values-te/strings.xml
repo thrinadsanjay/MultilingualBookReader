@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Svara</string>
+    <string name="app_tagline">చదవండి · వినండి · మీ గొంతు</string>
     <string name="home_title">Svara</string>
     <string name="scan_book">పుస్తకం స్కాన్ చేయండి</string>
     <string name="import_pdf">PDF దిగుమతి</string>

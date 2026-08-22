@@ -87,7 +87,6 @@ fun BookReaderNavHost() {
                     onImportPdf = { nav.navigate(Routes.PdfImport) },
                     onLibrary = { nav.navigate(AppTab.Library.route) },
                     onVoice = { nav.navigate(AppTab.Voice.route) },
-                    onSettings = { nav.navigate(AppTab.Settings.route) },
                     onContinue = { bookId -> nav.navigate("reader/$bookId") },
                     onUpdates = { nav.navigate(Routes.Updates) },
                 )

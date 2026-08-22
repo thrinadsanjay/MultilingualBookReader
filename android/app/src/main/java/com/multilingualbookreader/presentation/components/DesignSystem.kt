@@ -1,5 +1,6 @@
 package com.multilingualbookreader.presentation.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,11 +35,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.multilingualbookreader.R
 import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.presentation.theme.LocalDimens
 
@@ -249,6 +254,57 @@ fun IconTile(
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+/** The Svara launcher mark on its dark tile, so the brand reads the same inside the app. */
+@Composable
+fun BrandMark(modifier: Modifier = Modifier, size: Dp = 34.dp) {
+    Box(
+        modifier
+            .size(size)
+            .clip(RoundedCornerShape(size / 3.2f))
+            .background(colorResource(R.color.launcher_bg)),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Launchers show the middle 72 of the icon's 108 viewport; scaling by the same 1.5 keeps
+        // the in-app mark identical to the one on the home screen.
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
+            contentDescription = null,
+            modifier = Modifier.size(size * 1.5f),
+        )
+    }
+}
+
+/** Brand mark plus wordmark, used in the Home header and About. */
+@Composable
+fun BrandLockup(
+    modifier: Modifier = Modifier,
+    markSize: Dp = 34.dp,
+    showTagline: Boolean = false,
+) {
+    val brand = LocalBrand.current
+    Row(
+        modifier.semantics { contentDescription = "Svara" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        BrandMark(size = markSize)
+        Column {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleLarge,
+                color = brand.textPrimary,
+            )
+            if (showTagline) {
+                Text(
+                    stringResource(R.string.app_tagline),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = brand.textSecondary,
+                )
+            }
+        }
     }
 }
 

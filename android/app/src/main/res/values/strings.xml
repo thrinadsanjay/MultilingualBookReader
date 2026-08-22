@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Svara</string>
+    <string name="app_tagline">Read · Listen · Your voice</string>
     <string name="home_title">Svara</string>
     <string name="scan_book">Scan Book</string>
     <string name="import_pdf">Import PDF</string>

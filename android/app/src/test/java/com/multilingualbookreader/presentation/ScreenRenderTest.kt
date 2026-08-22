@@ -20,6 +20,7 @@ import com.multilingualbookreader.presentation.components.ReaderBottomBar
 import com.multilingualbookreader.presentation.home.HomeScreen
 import com.multilingualbookreader.presentation.home.HomeUiState
 import com.multilingualbookreader.presentation.library.LibraryScreen
+import com.multilingualbookreader.presentation.settings.AboutRoute
 import com.multilingualbookreader.presentation.settings.SettingsScreen
 import com.multilingualbookreader.presentation.settings.UpdatesScreen
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
@@ -95,7 +96,6 @@ class ScreenRenderTest {
             onImportPdf = {},
             onLibrary = {},
             onVoice = {},
-            onSettings = {},
             onContinue = {},
         )
     }
@@ -108,7 +108,6 @@ class ScreenRenderTest {
             onImportPdf = {},
             onLibrary = {},
             onVoice = {},
-            onSettings = {},
             onContinue = {},
         )
     }
@@ -123,8 +122,7 @@ class ScreenRenderTest {
                     onImportPdf = {},
                     onLibrary = {},
                     onVoice = {},
-                    onSettings = {},
-                    onContinue = {},
+                            onContinue = {},
                 )
             }
         }
@@ -140,8 +138,7 @@ class ScreenRenderTest {
                     onImportPdf = {},
                     onLibrary = {},
                     onVoice = {},
-                    onSettings = {},
-                    onContinue = {},
+                            onContinue = {},
                 )
             }
         }
@@ -175,6 +172,11 @@ class ScreenRenderTest {
             onBack = {},
             showBack = false,
         )
+    }
+
+    @Test
+    fun aboutDark() = render("about-dark", dark = true) {
+        AboutRoute(onBack = {})
     }
 
     @Test

@@ -21,7 +21,6 @@ class HomeScreenTest {
                     onImportPdf = {},
                     onLibrary = {},
                     onVoice = {},
-                    onSettings = {},
                     onContinue = {},
                 )
             }

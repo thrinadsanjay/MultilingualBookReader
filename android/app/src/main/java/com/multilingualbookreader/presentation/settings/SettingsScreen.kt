@@ -56,6 +56,7 @@ import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.model.OcrRoute
 import com.multilingualbookreader.domain.model.ThemeMode
 import com.multilingualbookreader.presentation.components.BookReaderCard
+import com.multilingualbookreader.presentation.components.BrandLockup
 import com.multilingualbookreader.presentation.components.FilterChipItem
 import com.multilingualbookreader.presentation.components.ReaderTopBar
 import com.multilingualbookreader.presentation.components.ScreenHeader
@@ -406,12 +407,31 @@ fun HelpRoute(onBack: () -> Unit) {
 
 @Composable
 fun AboutRoute(onBack: () -> Unit) {
-    SimpleInfoScreen(
-        "About",
-        "Svara ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}). Read, listen, your voice. " +
-            "GPL-3.0. English, Hindi, and Telugu reading with optional custom voice.",
-        onBack,
-    )
+    val brand = LocalBrand.current
+    Scaffold(
+        containerColor = brand.background,
+        topBar = { ReaderTopBar(title = "About", onBack = onBack) },
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            BrandLockup(markSize = 64.dp, showTagline = true)
+            Text(
+                "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                style = MaterialTheme.typography.bodyMedium,
+                color = brand.textSecondary,
+            )
+            Text(
+                "English, Hindi, and Telugu reading with optional custom voice. Books, notes, and " +
+                    "reading position stay on this phone.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = brand.textSecondary,
+            )
+            Text("GPL-3.0", style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary)
+            SecondaryButton("Back", onBack)
+        }
+    }
 }
 
 @Composable

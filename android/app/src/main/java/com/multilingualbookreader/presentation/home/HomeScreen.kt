@@ -25,7 +25,6 @@ import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.Icon
@@ -48,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.R
 import com.multilingualbookreader.presentation.components.BookReaderCard
+import com.multilingualbookreader.presentation.components.BrandLockup
 import com.multilingualbookreader.presentation.components.PillButton
 import com.multilingualbookreader.presentation.components.ReaderProgressBar
 import com.multilingualbookreader.presentation.components.SectionHeader
@@ -62,7 +62,6 @@ fun HomeRoute(
     onImportPdf: () -> Unit,
     onLibrary: () -> Unit,
     onVoice: () -> Unit,
-    onSettings: () -> Unit,
     onContinue: (String) -> Unit,
     onUpdates: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
@@ -74,7 +73,6 @@ fun HomeRoute(
         onImportPdf = onImportPdf,
         onLibrary = onLibrary,
         onVoice = onVoice,
-        onSettings = onSettings,
         onContinue = onContinue,
         onUpdates = onUpdates,
     )
@@ -87,7 +85,6 @@ fun HomeScreen(
     onImportPdf: () -> Unit,
     onLibrary: () -> Unit,
     onVoice: () -> Unit,
-    onSettings: () -> Unit,
     onContinue: (String) -> Unit,
     onUpdates: () -> Unit = {},
 ) {
@@ -106,10 +103,8 @@ fun HomeScreen(
                 .padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(dimens.gap),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onSettings) {
-                    Icon(Icons.Outlined.Menu, contentDescription = "Open settings", tint = brand.textPrimary)
-                }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                BrandLockup()
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onUpdates) {
                     Icon(Icons.Outlined.NotificationsNone, contentDescription = "What's new", tint = brand.textPrimary)
