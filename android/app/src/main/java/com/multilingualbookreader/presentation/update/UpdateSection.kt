@@ -1,15 +1,33 @@
 package com.multilingualbookreader.presentation.update
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.multilingualbookreader.presentation.components.LargeButton
+import com.multilingualbookreader.presentation.components.GradientButton
+import com.multilingualbookreader.presentation.components.GradientChip
+import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.update.AppUpdateManager
 import com.multilingualbookreader.update.UpdateUiState
 
@@ -21,54 +39,84 @@ fun UpdateSection(
     onDownload: () -> Unit,
 ) {
     val context = LocalContext.current
+    val brand = LocalBrand.current
     val directInstall = manager.canInstallFromThisApp()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("App updates", style = MaterialTheme.typography.titleMedium)
-        Text("Installed: ${state.currentVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            if (directInstall) {
-                "New test builds can install from here, or from Chrome / Files."
-            } else {
-                "This phone blocks installs from Book Reader (Advanced Protection or a work policy). Leave device security on. Open the update in Chrome or Files instead — the same way the first APK was installed."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        state.message?.let { Text(it) }
-        if (state.downloading) {
-            LinearProgressIndicator(progress = { state.progressPercent / 100f }, modifier = Modifier)
-            Text("Downloading ${state.progressPercent}%")
-        }
-        LargeButton(
-            text = if (state.checking) "Checking…" else "Check for update",
-            onClick = onCheck,
-            tonal = true,
-            enabled = !state.checking && !state.downloading,
-        )
-        state.available?.let { update ->
-            LargeButton(
-                text = "Open ${update.versionName} in browser",
-                onClick = {
-                    manager.browserDownloadIntent(update.apkUrl)?.let { intent ->
-                        context.startActivity(intent)
-                    }
-                },
-            )
-            if (directInstall && state.downloadedFile == null) {
-                LargeButton(
-                    text = "Download in the app",
-                    onClick = onDownload,
-                    tonal = true,
-                    enabled = !state.downloading,
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("App Updates", style = MaterialTheme.typography.titleLarge)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(brand.card)
+                .border(1.dp, brand.cardBorder, RoundedCornerShape(22.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(brand.purple.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.RocketLaunch, contentDescription = null, tint = brand.purple)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Installed: v${state.currentVersion}", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        state.message
+                            ?: if (directInstall) {
+                                "Check for a newer test build."
+                            } else {
+                                "If install is blocked, open the update in Chrome or Files."
+                            },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = brand.muted,
+                    )
+                }
+                GradientChip(
+                    text = if (state.checking) "Checking…" else "Check for update",
+                    brush = brand.purpleGradient,
+                    onClick = onCheck,
+                    enabled = !state.checking && !state.downloading,
                 )
             }
-        }
-        if (directInstall) {
-            state.downloadedFile?.let { file ->
-                LargeButton(
-                    text = "Install update",
-                    onClick = { context.startActivity(manager.installIntent(file)) },
+            if (state.downloading) {
+                LinearProgressIndicator(
+                    progress = { state.progressPercent / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = brand.orange,
+                    trackColor = brand.cardBorder,
                 )
+            }
+            state.available?.let { update ->
+                GradientButton(
+                    text = "Download ${update.versionName}",
+                    brush = brand.orangeGradient,
+                    icon = Icons.Outlined.Download,
+                    onClick = {
+                        if (directInstall) {
+                            onDownload()
+                        } else {
+                            manager.browserDownloadIntent(update.apkUrl)?.let { context.startActivity(it) }
+                        }
+                    },
+                    enabled = !state.downloading,
+                    contentColor = Color(0xFFFFF3E0),
+                )
+            }
+            if (directInstall) {
+                state.downloadedFile?.let { file ->
+                    GradientButton(
+                        text = "Install update",
+                        brush = brand.orangeGradient,
+                        onClick = { context.startActivity(manager.installIntent(file)) },
+                    )
+                }
             }
         }
     }

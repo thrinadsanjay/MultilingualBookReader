@@ -1,5 +1,9 @@
 package com.multilingualbookreader.presentation.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
@@ -16,7 +20,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import com.multilingualbookreader.presentation.theme.LocalBrand
 
 enum class AppTab(
     val route: String,
@@ -39,26 +49,39 @@ fun ReaderBottomBar(
     currentRoute: String?,
     onSelect: (AppTab) -> Unit,
 ) {
+    val brand = LocalBrand.current
     val selected = appTabForRoute(currentRoute)
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+    NavigationBar(containerColor = brand.navBar, tonalElevation = 0.dp) {
         AppTab.entries.forEach { tab ->
             val isSelected = tab == selected
             NavigationBarItem(
                 selected = isSelected,
                 onClick = { onSelect(tab) },
+                alwaysShowLabel = false,
                 icon = {
-                    Icon(
-                        imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                        contentDescription = tab.label,
-                    )
+                    if (isSelected) {
+                        Box(
+                            Modifier
+                                .size(width = 48.dp, height = 32.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(brand.orange.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(tab.selectedIcon, contentDescription = tab.label, tint = brand.orange)
+                        }
+                    } else {
+                        Icon(tab.unselectedIcon, contentDescription = tab.label, tint = brand.muted)
+                    }
                 },
-                label = { Text(tab.label, style = MaterialTheme.typography.labelMedium) },
+                label = {
+                    Text(tab.label, style = MaterialTheme.typography.labelMedium)
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedIconColor = brand.orange,
+                    selectedTextColor = brand.orange,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = brand.muted,
+                    unselectedTextColor = brand.muted,
                 ),
             )
         }
