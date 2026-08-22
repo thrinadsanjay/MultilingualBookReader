@@ -62,11 +62,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 
 ### Install on a phone (no Android Studio)
 
-Android cannot silently replace an installed app. After you have a build that includes the in-app updater, later test builds install from **Home** or **Settings**.
+Android cannot silently replace an installed app, so how you get updates depends on what the phone allows. Settings → **Check for updates** detects this and shows only the route that can actually succeed.
 
-1. If you still have v0.1.0, install **v0.1.1 once** from [the v0.1.1-debug release](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/v0.1.1-debug) so the in-app updater is available. After that, Home or Settings → **Check for update** installs newer test builds such as v0.1.2.
-2. Open Book Reader → **Check for update**. If the phone allows it, download and install from the app. If Advanced Protection or a work policy blocks Book Reader as an installer, tap **Open in browser** and install from Chrome or Files — leave device security on.
-3. Confirm the system installer when Android shows it. The app cannot silently replace itself, and it cannot override Advanced Protection.
+| Phone state | What the app offers |
+| --- | --- |
+| Installed from Google Play | Play updates it in the background; the button opens the Play listing |
+| Sideloading allowed | Download the APK and install it in place |
+| Install permission not granted yet | One tap to Android's "allow installs" screen |
+| Advanced Protection on | Explains the block and points at Play; no download that would fail |
+
+**Advanced Protection blocks every sideload**, including Chrome, Files, and `adb install`
+(`INSTALL_FAILED_USER_RESTRICTED`). No app can work around it, and this one does not pretend to.
+To keep protection on, distribute through the Play internal testing track — see
+[DEPLOYMENT.md](DEPLOYMENT.md#testers-with-advanced-protection) for the one-time Play Console setup
+and `.github/workflows/play-internal.yml` for the upload job.
 
 New test APKs are published as GitHub prereleases named `BookReader-{versionCode}-debug.apk` (see the rolling [`testing-latest`](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/testing-latest) release after merges to `main`). Bump `versionCode` in `android/app/build.gradle.kts` whenever testers should receive an update. The repository must stay **public** so the app can list and download those releases without a token.
 

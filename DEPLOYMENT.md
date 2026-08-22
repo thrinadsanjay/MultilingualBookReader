@@ -74,15 +74,34 @@ docker run --env-file .env -p 8080:8080 book-reader-api
 
 ## Sideload test updates
 
-The debug app checks public GitHub Releases and can install a newer APK from Home or Settings.
+The debug app checks public GitHub Releases and can install a newer APK from Settings → Check for updates.
 
 - Filename: `BookReader-{versionCode}-debug.apk` (example: `BookReader-3-debug.apk`)
 - Or put `versionCode=3` in the release body if the filename has no integer code
 - Bump `versionCode` in `android/app/build.gradle.kts` for every build testers should receive
 - CI workflow `.github/workflows/publish-debug-apk.yml` publishes a rolling `testing-latest` prerelease on pushes to `main`
 - The user still confirms the Android package installer; the app cannot replace itself silently
-- If Advanced Protection or a work policy blocks “Install unknown apps” for Book Reader, the app opens the APK in Chrome or Files instead. It cannot whitelist itself against that policy.
 - In-app checks use the unauthenticated GitHub API, so the repository must be public
+
+## Testers with Advanced Protection
+
+Android 16's Advanced Protection permanently revokes `REQUEST_INSTALL_PACKAGES` for every app and
+rejects `adb install` with `INSTALL_FAILED_USER_RESTRICTED`. Chrome, Files, a second phone, and a
+laptop are all blocked the same way, so **no sideload path exists** while it is on. The app detects
+this (`InstallChannel.BLOCKED`) and stops offering a download it could never install.
+
+The only distribution that works with protection left on is Google Play. `.github/workflows/play-internal.yml`
+builds a signed bundle and uploads it to the internal testing track. One-time setup:
+
+1. Create a Play Console developer account and an app with package `com.multilingualbookreader`.
+2. Generate an upload key: `keytool -genkeypair -v -keystore upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`.
+3. Create a Google Cloud service account, grant it release permissions in Play Console, and download its JSON key.
+4. Add repository secrets: `PLAY_SERVICE_ACCOUNT_JSON`, `PLAY_KEYSTORE_BASE64` (`base64 -w0 upload.jks`), `PLAY_KEYSTORE_PASSWORD`, `PLAY_KEY_ALIAS`, `PLAY_KEY_PASSWORD`.
+5. Add the tester's Google account to the internal testing track and have them install from the opt-in link once.
+
+After that first Play install, `InstallChannel.PLAY` takes over: Play updates the app in the
+background and Settings → Check for updates just opens the Play listing. The keystore is read from
+`BOOKREADER_KEYSTORE_PATH` at build time and is never committed.
 
 ## Production Android
 

@@ -2,6 +2,7 @@ package com.multilingualbookreader.update
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.UserManager
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -41,6 +42,14 @@ class AppUpdateManager @Inject constructor(
     val state: StateFlow<UpdateUiState> = _state
 
     suspend fun check() {
+        if (installChannel() == InstallChannel.PLAY) {
+            _state.value = _state.value.copy(
+                checking = false,
+                available = null,
+                message = "Google Play delivers updates for this install. Open Play to get the newest build.",
+            )
+            return
+        }
         _state.value = _state.value.copy(checking = true, message = "Checking for an update…")
         runCatching {
             val releases = api.releases(BuildConfig.UPDATE_OWNER, BuildConfig.UPDATE_REPO)
@@ -128,22 +137,56 @@ class AppUpdateManager @Inject constructor(
     }
 
     fun unknownSourcesRestricted(): Boolean {
+        if (advancedProtectionEnabled()) return true
         val users = context.getSystemService(UserManager::class.java) ?: return false
         return users.hasUserRestriction(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES) ||
             users.hasUserRestriction(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY) ||
             users.hasUserRestriction(UserManager.DISALLOW_INSTALL_APPS)
     }
 
-    fun canInstallFromThisApp(): Boolean {
-        val allowed = runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false)
-        return !InstallPolicy.prefersBrowserInstall(allowed, unknownSourcesRestricted())
-    }
+    /**
+     * Android 16 exposes Advanced Protection through a system service that is newer than our
+     * compileSdk, so it is read reflectively and treated as off when the class is missing.
+     */
+    private fun advancedProtectionEnabled(): Boolean = runCatching {
+        val service = context.getSystemService("advanced_protection") ?: return false
+        val method = service.javaClass.getMethod("isAdvancedProtectionEnabled")
+        method.invoke(service) as? Boolean ?: false
+    }.getOrDefault(false)
+
+    private fun installerPackage(): String? = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getInstallerPackageName(context.packageName)
+        }
+    }.getOrNull()
+
+    fun installChannel(): InstallChannel = InstallPolicy.channel(
+        installerPackage = installerPackage(),
+        canRequestPackageInstalls = runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false),
+        unknownSourcesRestricted = unknownSourcesRestricted(),
+    )
+
+    fun canInstallFromThisApp(): Boolean = installChannel() == InstallChannel.DIRECT
 
     fun browserDownloadIntent(url: String? = _state.value.available?.apkUrl): Intent? {
         val target = url ?: return null
         return Intent(Intent.ACTION_VIEW, target.toUri()).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+    }
+
+    /** Opens this app's Play listing, where an update installs even while Advanced Protection is on. */
+    fun openPlayStore() {
+        val market = Intent(Intent.ACTION_VIEW, "market://details?id=${context.packageName}".toUri())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val web = Intent(Intent.ACTION_VIEW, "$PLAY_WEB_URL${context.packageName}".toUri())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(market) }
+            .recoverCatching { context.startActivity(web) }
+            .onFailure { AppLog.w("play_store_unavailable") }
     }
 
     fun installPermissionIntent(): Intent {
@@ -159,5 +202,9 @@ class AppUpdateManager @Inject constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+    }
+
+    private companion object {
+        const val PLAY_WEB_URL = "https://play.google.com/store/apps/details?id="
     }
 }

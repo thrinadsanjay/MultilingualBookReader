@@ -5,17 +5,50 @@ import org.junit.Test
 
 class InstallPolicyTest {
     @Test
-    fun usesBrowserWhenUnknownSourcesAreRestricted() {
-        assertThat(InstallPolicy.prefersBrowserInstall(canRequestPackageInstalls = true, unknownSourcesRestricted = true)).isTrue()
+    fun playInstallsUpdateThroughPlay() {
+        val channel = InstallPolicy.channel(
+            installerPackage = InstallPolicy.PLAY_STORE_PACKAGE,
+            canRequestPackageInstalls = false,
+            unknownSourcesRestricted = true,
+        )
+        assertThat(channel).isEqualTo(InstallChannel.PLAY)
     }
 
     @Test
-    fun usesBrowserWhenThisAppCannotInstall() {
-        assertThat(InstallPolicy.prefersBrowserInstall(canRequestPackageInstalls = false, unknownSourcesRestricted = false)).isTrue()
+    fun advancedProtectionBlocksEverySideload() {
+        val channel = InstallPolicy.channel(
+            installerPackage = null,
+            canRequestPackageInstalls = false,
+            unknownSourcesRestricted = true,
+        )
+        assertThat(channel).isEqualTo(InstallChannel.BLOCKED)
+    }
+
+    @Test
+    fun missingPermissionCanStillBeGranted() {
+        val channel = InstallPolicy.channel(
+            installerPackage = null,
+            canRequestPackageInstalls = false,
+            unknownSourcesRestricted = false,
+        )
+        assertThat(channel).isEqualTo(InstallChannel.NEEDS_PERMISSION)
     }
 
     @Test
     fun allowsDirectInstallWhenThePhonePermitsIt() {
-        assertThat(InstallPolicy.prefersBrowserInstall(canRequestPackageInstalls = true, unknownSourcesRestricted = false)).isFalse()
+        val channel = InstallPolicy.channel(
+            installerPackage = "com.android.shell",
+            canRequestPackageInstalls = true,
+            unknownSourcesRestricted = false,
+        )
+        assertThat(channel).isEqualTo(InstallChannel.DIRECT)
+    }
+
+    @Test
+    fun onlySideloadChannelsDownloadAnApk() {
+        assertThat(InstallPolicy.downloadIsPointless(InstallChannel.PLAY)).isTrue()
+        assertThat(InstallPolicy.downloadIsPointless(InstallChannel.BLOCKED)).isTrue()
+        assertThat(InstallPolicy.downloadIsPointless(InstallChannel.DIRECT)).isFalse()
+        assertThat(InstallPolicy.downloadIsPointless(InstallChannel.NEEDS_PERMISSION)).isFalse()
     }
 }
