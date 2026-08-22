@@ -124,6 +124,7 @@ class SettingsRepositoryImpl @Inject constructor(
             prefs[Keys.ANALYTICS] = next.analyticsEnabled
             prefs[Keys.CRASH] = next.crashReportingEnabled
             prefs[Keys.BACKEND] = next.backendBaseUrl
+            prefs[Keys.LANGUAGE] = next.defaultLanguageTag
         }
     }
 
@@ -139,6 +140,7 @@ class SettingsRepositoryImpl @Inject constructor(
         analyticsEnabled = this[Keys.ANALYTICS] ?: false,
         crashReportingEnabled = this[Keys.CRASH] ?: false,
         backendBaseUrl = this[Keys.BACKEND] ?: "",
+        defaultLanguageTag = this[Keys.LANGUAGE] ?: "AUTO",
     )
 
     private object Keys {
@@ -153,5 +155,6 @@ class SettingsRepositoryImpl @Inject constructor(
         val ANALYTICS = booleanPreferencesKey("analytics")
         val CRASH = booleanPreferencesKey("crash")
         val BACKEND = stringPreferencesKey("backend")
+        val LANGUAGE = stringPreferencesKey("language")
     }
 }

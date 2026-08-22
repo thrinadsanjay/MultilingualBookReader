@@ -1,40 +1,53 @@
 package com.multilingualbookreader.presentation.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.R
-import com.multilingualbookreader.presentation.components.ContinueListeningCard
-import com.multilingualbookreader.presentation.components.HeroActionCard
-import com.multilingualbookreader.presentation.components.OpenBookDecoration
-import com.multilingualbookreader.presentation.components.SectionLinkRow
-import com.multilingualbookreader.presentation.components.StatusBadge
-import com.multilingualbookreader.presentation.components.VoiceHomeCard
+import com.multilingualbookreader.presentation.components.BookReaderCard
+import com.multilingualbookreader.presentation.components.PrimaryButton
+import com.multilingualbookreader.presentation.components.ReaderProgressBar
+import com.multilingualbookreader.presentation.components.SectionHeader
+import com.multilingualbookreader.presentation.components.StatusPill
 import com.multilingualbookreader.presentation.theme.LocalBrand
-import com.multilingualbookreader.presentation.update.UpdateSection
-import com.multilingualbookreader.update.AppUpdateManager
-import com.multilingualbookreader.update.UpdateUiState
+import com.multilingualbookreader.presentation.theme.LocalDimens
+import java.util.Calendar
 
 @Composable
 fun HomeRoute(
@@ -47,19 +60,14 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     HomeScreen(
         state = state,
-        updateState = updateState,
-        updateManager = viewModel.updates,
         onScan = onScan,
         onImportPdf = onImportPdf,
         onLibrary = onLibrary,
         onVoice = onVoice,
         onSettings = onSettings,
         onContinue = onContinue,
-        onCheckUpdate = viewModel::checkUpdate,
-        onDownloadUpdate = viewModel::downloadUpdate,
     )
 }
 
@@ -72,114 +80,161 @@ fun HomeScreen(
     onVoice: () -> Unit,
     onSettings: () -> Unit,
     onContinue: (String) -> Unit,
-    updateState: UpdateUiState = UpdateUiState(),
-    updateManager: AppUpdateManager? = null,
-    onCheckUpdate: () -> Unit = {},
-    onDownloadUpdate: () -> Unit = {},
 ) {
     val brand = LocalBrand.current
+    val dimens = LocalDimens.current
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = brand.background,
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+                .padding(horizontal = dimens.screen, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(dimens.gap),
         ) {
-            Box(Modifier.fillMaxWidth()) {
-                OpenBookDecoration(Modifier.align(Alignment.TopEnd))
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Book Reader", style = MaterialTheme.typography.displaySmall)
-                        Text(
-                            "Open a book and listen.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = brand.muted,
-                        )
-                    }
-                    StatusBadge(state.online)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(greeting(), style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
+                    Text("Open a book and listen.", style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary)
                 }
+                StatusPill(state.online)
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                HeroActionCard(
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HeroCard(
                     title = stringResource(R.string.scan_book),
                     subtitle = "Use camera to scan book pages",
                     icon = Icons.Outlined.DocumentScanner,
+                    container = brand.accent,
+                    content = brand.onAccent,
+                    subtitleColor = brand.onAccent.copy(alpha = 0.78f),
                     onClick = onScan,
                     modifier = Modifier.weight(1f),
-                    background = brand.scanGradient,
-                    iconTint = androidx.compose.ui.graphics.Color.White,
-                    iconWell = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f),
-                    subtitleColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f),
-                    arrowWell = androidx.compose.ui.graphics.Color(0x33000000),
-                    arrowTint = androidx.compose.ui.graphics.Color.White,
                 )
-                HeroActionCard(
+                HeroCard(
                     title = stringResource(R.string.import_pdf),
                     subtitle = "Import books from your files",
                     icon = Icons.Outlined.PictureAsPdf,
+                    container = brand.importSurface,
+                    content = brand.textPrimary,
+                    subtitleColor = brand.textSecondary,
+                    iconTint = brand.teal,
                     onClick = onImportPdf,
                     modifier = Modifier.weight(1f),
-                    backgroundColor = brand.importBackground,
-                    iconTint = brand.teal,
-                    iconWell = brand.teal.copy(alpha = 0.16f),
-                    subtitleColor = brand.muted,
-                    arrowWell = brand.tealDeep,
-                    arrowTint = brand.teal,
-                    titleColor = MaterialTheme.colorScheme.onBackground,
                 )
             }
 
-            SectionLinkRow(
-                title = stringResource(R.string.my_voice),
-                action = "Manage Voice  >",
-                onAction = onVoice,
-                actionColor = brand.orange,
-            )
-            VoiceHomeCard(
-                name = state.voice?.name ?: "No voice yet",
-                detail = state.voice?.status?.name?.lowercase()?.replaceFirstChar { it.titlecase() }
-                    ?: "Create your own voice to hear books in your speech.",
-                onCreate = onVoice,
-            )
-
-            SectionLinkRow(
-                title = "Continue Listening",
-                action = "View all  >",
-                onAction = onLibrary,
-                actionColor = brand.teal,
-            )
+            SectionHeader("Continue Listening", "View all", onLibrary, brand.accent)
             state.continueReading?.let { item ->
                 val page = (item.progressPercent * item.book.totalPages / 100).coerceAtLeast(1)
-                ContinueListeningCard(
-                    title = item.book.title,
-                    pageLabel = "Page $page of ${item.book.totalPages}  •  ${item.progressPercent}%",
-                    progressPercent = item.progressPercent,
-                    onPlay = { onContinue(item.book.id) },
-                )
-            } ?: Text(
-                "Imported and scanned books will show up here.",
-                style = MaterialTheme.typography.bodySmall,
-                color = brand.muted,
-            )
+                BookReaderCard(onClick = { onContinue(item.book.id) }) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(brand.accent.copy(alpha = 0.28f)))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(item.book.title, style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                            Text(
+                                "Page $page of ${item.book.totalPages} · ${item.progressPercent}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = brand.textSecondary,
+                            )
+                            ReaderProgressBar(item.progressPercent)
+                        }
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).background(brand.accent).clickable { onContinue(item.book.id) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Outlined.PlayArrow, contentDescription = "Play", tint = brand.onAccent)
+                        }
+                    }
+                }
+            } ?: BookReaderCard {
+                Text("No books in progress", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                Text("Scan a page or import a PDF to start listening.", style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
+            }
 
-            updateManager?.let { manager ->
-                UpdateSection(
-                    state = updateState,
-                    manager = manager,
-                    onCheck = onCheckUpdate,
-                    onDownload = onDownloadUpdate,
-                )
+            SectionHeader("My Voice", if (state.voice != null) "Manage Voice" else null, if (state.voice != null) onVoice else null, brand.accent)
+            BookReaderCard {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(brand.surfaceSecondary), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.GraphicEq, null, tint = brand.accent)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(state.voice?.name ?: "No voice yet", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                        Text(
+                            if (state.voice == null) {
+                                "Create your own voice to hear books in your speech."
+                            } else {
+                                buildString {
+                                    append(state.voice.status.name.lowercase().replaceFirstChar { it.titlecase() })
+                                    val langs = state.voice.supportedLanguages.joinToString { it.displayName }
+                                    if (langs.isNotBlank()) append(" · ").append(langs)
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = brand.textSecondary,
+                        )
+                    }
+                }
+                if (state.voice == null) {
+                    Spacer(Modifier.height(12.dp))
+                    PrimaryButton("Create Voice", onVoice)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun HeroCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    container: Color,
+    content: Color,
+    subtitleColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconTint: Color = content,
+) {
+    val dimens = LocalDimens.current
+    val shape = RoundedCornerShape(dimens.cardRadius)
+    Box(
+        modifier
+            .height(dimens.heroCardHeight)
+            .clip(shape)
+            .background(container)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = title }
+            .padding(16.dp),
+    ) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(content.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, null, tint = iconTint)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = content, style = MaterialTheme.typography.titleLarge)
+                Text(subtitle, color = subtitleColor, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Box(
+            Modifier.align(Alignment.BottomEnd).size(32.dp).clip(CircleShape).background(content.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, tint = content, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+private fun greeting(): String {
+    return when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning! 👋"
+        in 12..16 -> "Good afternoon! 👋"
+        else -> "Good evening! 👋"
     }
 }

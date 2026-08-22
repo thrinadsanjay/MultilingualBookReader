@@ -102,6 +102,7 @@ data class AppSettings(
     val analyticsEnabled: Boolean = false,
     val crashReportingEnabled: Boolean = false,
     val backendBaseUrl: String = "",
+    val defaultLanguageTag: String = "AUTO",
 )
 
 data class LibraryBook(

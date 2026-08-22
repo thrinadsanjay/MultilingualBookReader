@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 data class VoiceUiState(
     val consent: Boolean = false,
     val recording: Boolean = false,
+    val paused: Boolean = false,
     val samples: Int = 0,
     val name: String = "My voice",
     val message: String? = null,
@@ -59,14 +60,29 @@ class VoiceViewModel @Inject constructor(
             prepare()
             start()
         }
-        _state.value = _state.value.copy(recording = true, error = null)
+        _state.value = _state.value.copy(recording = true, paused = false, error = null)
+    }
+
+    fun pauseRecording() {
+        runCatching { recorder?.pause() }
+        _state.value = _state.value.copy(paused = true)
+    }
+
+    fun resumeRecording() {
+        runCatching { recorder?.resume() }
+        _state.value = _state.value.copy(paused = false)
     }
 
     fun stopRecording() {
         runCatching { recorder?.stop(); recorder?.release() }
         recorder = null
         currentFile?.takeIf { it.exists() }?.readBytes()?.let { recorded += it }
-        _state.value = _state.value.copy(recording = false, samples = recorded.size)
+        _state.value = _state.value.copy(recording = false, paused = false, samples = recorded.size)
+    }
+
+    fun retakeLast() {
+        if (recorded.isNotEmpty()) recorded.removeAt(recorded.lastIndex)
+        _state.value = _state.value.copy(samples = recorded.size)
     }
 
     fun create() {

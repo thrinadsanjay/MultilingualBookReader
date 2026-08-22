@@ -2,14 +2,11 @@ package com.multilingualbookreader.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Settings
@@ -31,18 +28,15 @@ import com.multilingualbookreader.presentation.theme.LocalBrand
 enum class AppTab(
     val route: String,
     val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
+    val icon: ImageVector,
 ) {
-    Home("home", "Home", Icons.Filled.Home, Icons.Outlined.Home),
-    Library("library", "Library", Icons.AutoMirrored.Filled.MenuBook, Icons.AutoMirrored.Outlined.MenuBook),
-    Voice("voice", "Voice", Icons.Filled.RecordVoiceOver, Icons.Outlined.RecordVoiceOver),
-    Settings("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
+    Home("home", "Home", Icons.Outlined.Home),
+    Library("library", "Library", Icons.AutoMirrored.Outlined.MenuBook),
+    Voice("voice", "Voice", Icons.Outlined.RecordVoiceOver),
+    Settings("settings", "Settings", Icons.Outlined.Settings),
 }
 
-fun appTabForRoute(route: String?): AppTab? = AppTab.entries.firstOrNull { tab ->
-    route == tab.route
-}
+fun appTabForRoute(route: String?): AppTab? = AppTab.entries.firstOrNull { it.route == route }
 
 @Composable
 fun ReaderBottomBar(
@@ -57,31 +51,28 @@ fun ReaderBottomBar(
             NavigationBarItem(
                 selected = isSelected,
                 onClick = { onSelect(tab) },
-                alwaysShowLabel = false,
                 icon = {
                     if (isSelected) {
                         Box(
                             Modifier
-                                .size(width = 48.dp, height = 32.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(brand.orange.copy(alpha = 0.18f)),
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(brand.accent)
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(tab.selectedIcon, contentDescription = tab.label, tint = brand.orange)
+                            Icon(tab.icon, contentDescription = tab.label, tint = brand.onAccent, modifier = Modifier.size(20.dp))
                         }
                     } else {
-                        Icon(tab.unselectedIcon, contentDescription = tab.label, tint = brand.muted)
+                        Icon(tab.icon, contentDescription = tab.label, tint = brand.textSecondary)
                     }
                 },
-                label = {
-                    Text(tab.label, style = MaterialTheme.typography.labelMedium)
-                },
+                label = { Text(tab.label, style = MaterialTheme.typography.labelMedium) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = brand.orange,
-                    selectedTextColor = brand.orange,
+                    selectedIconColor = brand.onAccent,
+                    selectedTextColor = brand.accent,
                     indicatorColor = Color.Transparent,
-                    unselectedIconColor = brand.muted,
-                    unselectedTextColor = brand.muted,
+                    unselectedIconColor = brand.textSecondary,
+                    unselectedTextColor = brand.textSecondary,
                 ),
             )
         }

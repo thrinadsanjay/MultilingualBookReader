@@ -26,6 +26,7 @@ class HomeScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Book Reader").assertIsDisplayed()
+        composeRule.onNodeWithText("Open a book and listen.").assertIsDisplayed()
+        composeRule.onNodeWithText("Scan Book").assertIsDisplayed()
     }
 }

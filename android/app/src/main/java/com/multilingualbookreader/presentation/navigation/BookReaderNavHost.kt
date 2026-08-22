@@ -22,8 +22,11 @@ import com.multilingualbookreader.presentation.pdf.PdfImportRoute
 import com.multilingualbookreader.presentation.reader.ReaderRoute
 import com.multilingualbookreader.presentation.scan.ScanRoute
 import com.multilingualbookreader.presentation.search.SearchRoute
+import com.multilingualbookreader.presentation.settings.AboutRoute
+import com.multilingualbookreader.presentation.settings.HelpRoute
 import com.multilingualbookreader.presentation.settings.PrivacyRoute
 import com.multilingualbookreader.presentation.settings.SettingsRoute
+import com.multilingualbookreader.presentation.settings.UpdatesRoute
 import com.multilingualbookreader.presentation.voice.VoiceRoute
 import com.multilingualbookreader.presentation.voice.VoiceTestRoute
 
@@ -32,6 +35,9 @@ object Routes {
     const val Library = "library"
     const val Settings = "settings"
     const val Privacy = "privacy"
+    const val Updates = "updates"
+    const val Help = "help"
+    const val About = "about"
     const val Scan = "scan?bookId={bookId}"
     const val PdfImport = "pdf"
     const val Reader = "reader/{bookId}"
@@ -54,9 +60,7 @@ fun BookReaderNavHost() {
                 ReaderBottomBar(currentRoute = route) { tab ->
                     if (route != tab.route) {
                         nav.navigate(tab.route) {
-                            popUpTo(nav.graph.findStartDestination().id) {
-                                saveState = true
-                            }
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -65,11 +69,7 @@ fun BookReaderNavHost() {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = nav,
-            startDestination = Routes.Home,
-            modifier = Modifier.padding(padding),
-        ) {
+        NavHost(navController = nav, startDestination = Routes.Home, modifier = Modifier.padding(padding)) {
             composable(Routes.Home) {
                 HomeRoute(
                     onScan = { nav.navigate("scan?bookId=") },
@@ -84,6 +84,8 @@ fun BookReaderNavHost() {
                 LibraryRoute(
                     onOpen = { nav.navigate("reader/$it") },
                     onBack = { nav.popBackStack() },
+                    onScan = { nav.navigate("scan?bookId=") },
+                    onImportPdf = { nav.navigate(Routes.PdfImport) },
                     showBack = false,
                 )
             }
@@ -91,11 +93,17 @@ fun BookReaderNavHost() {
                 SettingsRoute(
                     onPrivacy = { nav.navigate(Routes.Privacy) },
                     onVoiceTest = { nav.navigate(Routes.VoiceTest) },
+                    onUpdates = { nav.navigate(Routes.Updates) },
+                    onHelp = { nav.navigate(Routes.Help) },
+                    onAbout = { nav.navigate(Routes.About) },
                     onBack = { nav.popBackStack() },
                     showBack = false,
                 )
             }
             composable(Routes.Privacy) { PrivacyRoute(onBack = { nav.popBackStack() }) }
+            composable(Routes.Updates) { UpdatesRoute(onBack = { nav.popBackStack() }) }
+            composable(Routes.Help) { HelpRoute(onBack = { nav.popBackStack() }) }
+            composable(Routes.About) { AboutRoute(onBack = { nav.popBackStack() }) }
             composable(
                 route = Routes.Scan,
                 arguments = listOf(navArgument("bookId") { type = NavType.StringType; defaultValue = "" }),
@@ -123,11 +131,7 @@ fun BookReaderNavHost() {
                 )
             }
             composable(Routes.Voice) {
-                VoiceRoute(
-                    onBack = { nav.popBackStack() },
-                    onTest = { nav.navigate(Routes.VoiceTest) },
-                    showBack = false,
-                )
+                VoiceRoute(onBack = { nav.popBackStack() }, onTest = { nav.navigate(Routes.VoiceTest) }, showBack = false)
             }
             composable(Routes.VoiceTest) { VoiceTestRoute(onBack = { nav.popBackStack() }) }
             composable(
@@ -136,9 +140,7 @@ fun BookReaderNavHost() {
             ) {
                 SearchRoute(
                     bookId = it.arguments?.getString("bookId").orEmpty(),
-                    onOpenPage = { _ ->
-                        nav.popBackStack()
-                    },
+                    onOpenPage = { _ -> nav.popBackStack() },
                     onBack = { nav.popBackStack() },
                 )
             }
