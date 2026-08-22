@@ -7,6 +7,13 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// Play uploads need a signed build. CI supplies the keystore through the environment; local and
+// debug builds keep working without one.
+val playKeystore = System.getenv("BOOKREADER_KEYSTORE_PATH")
+    ?.takeIf { it.isNotBlank() }
+    ?.let(::File)
+    ?.takeIf(File::exists)
+
 android {
     namespace = "com.multilingualbookreader"
     compileSdk = 35
@@ -16,10 +23,21 @@ android {
         minSdk = 26
         targetSdk = 35
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 7
-        versionName = "0.1.6"
+        versionCode = 8
+        versionName = "0.1.7"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        if (playKeystore != null) {
+            create("play") {
+                storeFile = playKeystore
+                storePassword = System.getenv("BOOKREADER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("BOOKREADER_KEY_ALIAS")
+                keyPassword = System.getenv("BOOKREADER_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -31,6 +49,7 @@ android {
             buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }
         release {
+            signingConfigs.findByName("play")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -129,6 +148,9 @@ dependencies {
     implementation(libs.pdfbox.android)
 
     testImplementation("androidx.test:core-ktx:1.6.1")
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)

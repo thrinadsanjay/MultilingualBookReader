@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,12 +17,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,6 +53,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -156,14 +163,25 @@ fun VoiceScreen(
                 }
             }
             BookReaderCard {
-                Text("Create your reading voice", style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
-                Spacer(Modifier.height(6.dp))
-                Text("Clone your own voice to hear books in your speech.", style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary)
-                Spacer(Modifier.height(8.dp))
-                Text("Record in a quiet room. Speak naturally and avoid music and clipping.", style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
-                Spacer(Modifier.height(12.dp))
-                Waveform(active = state.recording && !state.paused)
-                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Create your reading voice", style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Clone your own voice to hear books in your speech.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = brand.textSecondary,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Record in a quiet room. Speak naturally and avoid music and clipping.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = brand.textSecondary,
+                        )
+                    }
+                    Waveform(active = state.recording && !state.paused, modifier = Modifier.width(56.dp).height(96.dp))
+                }
+                Spacer(Modifier.height(14.dp))
                 OutlinedTextField(value = state.name, onValueChange = onName, label = { Text("Voice name") }, modifier = Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                     Checkbox(checked = state.consent, onCheckedChange = onConsent)
@@ -172,23 +190,54 @@ fun VoiceScreen(
             }
             BookReaderCard {
                 Text("Samples recorded", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
-                Text("${state.samples}", style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("${state.samples}", style = MaterialTheme.typography.displaySmall, color = brand.textPrimary)
+                    SampleMeter(recorded = state.samples, modifier = Modifier.weight(1f).height(28.dp))
+                }
                 if (state.recording) {
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         if (state.paused) "Paused ${formatTime(seconds)}" else "Recording ${formatTime(seconds)}",
                         color = brand.danger,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf("Record samples", "Review samples", "Create voice", "Ready to use").forEachIndexed { index, label ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                            val active = step >= index + 1
-                            androidx.compose.foundation.layout.Box(
-                                Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (active) brand.accent else brand.border),
+                    val steps = listOf(
+                        "Record samples" to Icons.Outlined.Mic,
+                        "Review samples" to Icons.Outlined.Headphones,
+                        "Create voice" to Icons.Outlined.AutoAwesome,
+                        "Ready to use" to Icons.Outlined.VerifiedUser,
+                    )
+                    steps.forEachIndexed { index, (label, icon) ->
+                        val active = step >= index + 1
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (active) brand.accent.copy(alpha = 0.18f) else brand.surfaceSecondary),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    icon,
+                                    null,
+                                    tint = if (active) brand.accent else brand.textSecondary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (active) brand.textPrimary else brand.textSecondary,
+                                textAlign = TextAlign.Center,
                             )
-                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (active) brand.textPrimary else brand.textSecondary)
                         }
                     }
                 }
@@ -203,7 +252,7 @@ fun VoiceScreen(
                     PrimaryButton("Stop", onStop)
                     SecondaryButton("Pause", onPause)
                 }
-                else -> PrimaryButton("Start recording samples", onStart)
+                else -> PrimaryButton("Start recording samples", onStart, icon = Icons.Outlined.Mic)
             }
             if (state.samples > 0 && !state.recording) {
                 SecondaryButton("Retake last sample", onRetake)
@@ -245,19 +294,46 @@ fun VoiceScreen(
 }
 
 @Composable
-private fun Waveform(active: Boolean) {
+private fun Waveform(active: Boolean, modifier: Modifier = Modifier) {
     val brand = LocalBrand.current
-    val bars = remember { listOf(0.3f, 0.7f, 0.45f, 0.9f, 0.55f, 0.8f, 0.35f, 0.65f, 0.5f, 0.75f, 0.4f, 0.85f) }
-    Canvas(Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(12.dp)).background(brand.surfaceSecondary)) {
-        val barWidth = size.width / (bars.size * 2f)
+    val bars = remember { listOf(0.30f, 0.62f, 0.42f, 0.86f, 0.54f, 0.95f, 0.48f, 0.72f, 0.36f) }
+    val accent = brand.accent
+    val teal = brand.teal
+    Canvas(modifier) {
+        val slot = size.width / bars.size
+        val barWidth = slot * 0.52f
         bars.forEachIndexed { index, raw ->
-            val h = size.height * if (active) raw else 0.2f + raw * 0.15f
-            val x = barWidth + index * barWidth * 2f
+            val fraction = if (active) raw else 0.22f + raw * 0.22f
+            val h = size.height * fraction
+            val x = index * slot + (slot - barWidth) / 2f
             drawRoundRect(
-                color = brand.accent,
+                color = if (index % 2 == 0) accent else teal,
                 topLeft = Offset(x, (size.height - h) / 2f),
                 size = Size(barWidth, h),
-                cornerRadius = CornerRadius(6f, 6f),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SampleMeter(recorded: Int, modifier: Modifier = Modifier) {
+    val brand = LocalBrand.current
+    val slots = 12
+    val accent = brand.accent
+    val idle = brand.border
+    Canvas(modifier) {
+        val slot = size.width / slots
+        val barWidth = slot * 0.45f
+        repeat(slots) { index ->
+            val filled = index < recorded
+            val h = if (filled) size.height else size.height * 0.35f
+            val x = index * slot + (slot - barWidth) / 2f
+            drawRoundRect(
+                color = if (filled) accent else idle,
+                topLeft = Offset(x, size.height - h),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
             )
         }
     }

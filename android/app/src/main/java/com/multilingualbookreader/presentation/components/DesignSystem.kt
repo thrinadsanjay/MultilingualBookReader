@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.presentation.theme.LocalDimens
@@ -73,22 +75,25 @@ fun PrimaryButton(
     val brand = LocalBrand.current
     val dimens = LocalDimens.current
     val shape = RoundedCornerShape(dimens.buttonRadius)
+    val container = if (enabled) brand.accent else brand.surfaceSecondary
+    val content = if (enabled) brand.onAccent else brand.textSecondary
     Row(
         modifier
             .fillMaxWidth()
             .height(dimens.buttonHeight)
             .clip(shape)
-            .background(if (enabled) brand.accent else brand.accent.copy(alpha = 0.4f))
+            .background(container)
+            .then(if (enabled) Modifier else Modifier.border(1.dp, brand.border, shape))
             .clickable(enabled = enabled, onClick = onClick)
             .semantics { contentDescription = text },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         if (icon != null) {
-            Icon(icon, null, tint = brand.onAccent, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = content, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = brand.onAccent, style = MaterialTheme.typography.labelLarge)
+        Text(text, color = content, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -176,9 +181,11 @@ fun ReaderProgressBar(percent: Int, modifier: Modifier = Modifier) {
     val brand = LocalBrand.current
     LinearProgressIndicator(
         progress = { (percent / 100f).coerceIn(0f, 1f) },
-        modifier = modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+        modifier = modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)),
         color = brand.accent,
         trackColor = brand.border,
+        gapSize = 0.dp,
+        drawStopIndicator = {},
     )
 }
 
@@ -197,11 +204,52 @@ fun FilterChipItem(
         style = MaterialTheme.typography.labelMedium,
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) brand.accent else brand.surfaceSecondary)
+            .background(if (selected) brand.accent else brand.card)
+            .border(1.dp, if (selected) brand.accent else brand.border, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp)
             .semantics { contentDescription = label },
     )
+}
+
+@Composable
+fun PillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean = true,
+) {
+    val brand = LocalBrand.current
+    val shape = RoundedCornerShape(20.dp)
+    Text(
+        text = text,
+        color = if (filled) brand.onAccent else brand.textPrimary,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = modifier
+            .clip(shape)
+            .background(if (filled) brand.accent else brand.surfaceSecondary)
+            .then(if (filled) Modifier else Modifier.border(1.dp, brand.border, shape))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .semantics { contentDescription = text },
+    )
+}
+
+@Composable
+fun IconTile(
+    icon: ImageVector,
+    tint: Color,
+    container: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    radius: Dp = 12.dp,
+) {
+    Box(
+        modifier.size(size).clip(RoundedCornerShape(radius)).background(container),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(size * 0.5f))
+    }
 }
 
 @Composable
@@ -241,8 +289,9 @@ fun SettingsRow(
     label: String,
     icon: ImageVector,
     value: String? = null,
-    onClick: (() -> Unit)? = null,
+    // Declared last so a trailing lambda at a call site is the click handler, never the slot.
     trailing: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     val brand = LocalBrand.current
     Row(
@@ -259,7 +308,7 @@ fun SettingsRow(
             trailing()
         } else {
             if (value != null) {
-                Text(value, style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary)
+                Text(value, style = MaterialTheme.typography.bodyMedium, color = brand.accent)
                 Spacer(Modifier.width(4.dp))
             }
             if (onClick != null) {
@@ -281,7 +330,14 @@ fun ToggleRow(
         Switch(
             checked = checked,
             onCheckedChange = onChecked,
-            colors = SwitchDefaults.colors(checkedTrackColor = brand.accent, checkedThumbColor = brand.onAccent),
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = brand.accent,
+                checkedThumbColor = brand.onAccent,
+                checkedBorderColor = brand.accent,
+                uncheckedTrackColor = brand.surfaceSecondary,
+                uncheckedThumbColor = brand.textSecondary,
+                uncheckedBorderColor = brand.border,
+            ),
         )
     })
 }
@@ -304,18 +360,21 @@ fun EmptyState(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            Modifier.size(88.dp).clip(CircleShape).background(brand.surfaceSecondary),
+            Modifier.size(112.dp).clip(CircleShape).background(brand.surfaceSecondary),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = brand.accent, modifier = Modifier.size(40.dp))
+            Icon(icon, null, tint = brand.accent, modifier = Modifier.size(52.dp))
         }
         Text(title, style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
-        Text(message, style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary)
-        if (primary != null && onPrimary != null) {
-            PrimaryButton(primary, onPrimary)
-        }
-        if (secondary != null && onSecondary != null) {
-            SecondaryButton(secondary, onSecondary)
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = brand.textSecondary, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (primary != null && onPrimary != null) {
+                PrimaryButton(primary, onPrimary, modifier = Modifier.weight(1f))
+            }
+            if (secondary != null && onSecondary != null) {
+                SecondaryButton(secondary, onSecondary, modifier = Modifier.weight(1f))
+            }
         }
     }
 }

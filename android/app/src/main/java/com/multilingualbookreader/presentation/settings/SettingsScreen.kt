@@ -2,14 +2,20 @@
 
 package com.multilingualbookreader.presentation.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +32,7 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -43,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.model.OcrRoute
 import com.multilingualbookreader.domain.model.ThemeMode
+import com.multilingualbookreader.presentation.components.BookReaderCard
 import com.multilingualbookreader.presentation.components.FilterChipItem
 import com.multilingualbookreader.presentation.components.ReaderTopBar
 import com.multilingualbookreader.presentation.components.ScreenHeader
@@ -182,16 +191,15 @@ fun SettingsScreen(
                 ToggleRow("Reduce motion", Icons.Outlined.MotionPhotosOff, reduceMotion, onMotion)
             }
             SettingsSection("App") {
-                SettingsRow("Check for updates", Icons.Outlined.SystemUpdate, "v${BuildConfig.VERSION_NAME}") { onUpdates() }
+                SettingsRow("Check for updates", Icons.Outlined.SystemUpdate, "v${BuildConfig.VERSION_NAME}", onClick = onUpdates)
                 SettingsRow("Privacy", Icons.Outlined.PrivacyTip, onClick = onPrivacy)
                 SettingsRow("Help & feedback", Icons.AutoMirrored.Outlined.HelpOutline, onClick = onHelp)
                 SettingsRow("About", Icons.Outlined.Info, onClick = onAbout)
             }
-            SettingsRow(
-                label = "Delete all data",
-                icon = Icons.Outlined.Delete,
-                onClick = { confirmDelete = true },
-            )
+            BookReaderCard {
+                DangerRow(label = "Delete all data", onClick = { confirmDelete = true })
+            }
+            Spacer(Modifier.height(4.dp))
         }
     }
     if (confirmDelete) {
@@ -204,6 +212,22 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun DangerRow(label: String, onClick: () -> Unit) {
+    val brand = LocalBrand.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = LocalDimens.current.touch)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Outlined.Delete, null, tint = brand.danger, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = brand.danger)
     }
 }
 

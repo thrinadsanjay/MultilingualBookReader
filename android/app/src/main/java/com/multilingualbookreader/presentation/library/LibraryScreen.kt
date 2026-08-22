@@ -19,8 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -29,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -161,13 +164,25 @@ fun LibraryScreen(
 private fun LibraryBookCard(item: LibraryBook, onOpen: () -> Unit, onDelete: () -> Unit) {
     val brand = LocalBrand.current
     var menu by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     BookReaderCard(onClick = onOpen) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(brand.accent.copy(alpha = 0.24f)))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    Modifier.size(width = 52.dp, height = 64.dp).clip(RoundedCornerShape(10.dp)).background(brand.surfaceSecondary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.Description, null, tint = brand.textSecondary, modifier = Modifier.size(24.dp))
+                }
+                IconButton(onClick = { confirmDelete = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete ${item.book.title}", tint = brand.textSecondary, modifier = Modifier.size(18.dp))
+                }
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(item.book.title, style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
                 Text(item.book.language.displayName, style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
-                Text("${item.completedPages} / ${item.book.totalPages} pages · ${item.progressPercent}%", style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
+                Text("${item.completedPages} / ${item.book.totalPages} pages", style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
+                Text("${item.progressPercent}%", style = MaterialTheme.typography.bodySmall, color = brand.textSecondary)
                 ReaderProgressBar(item.progressPercent)
             }
             Box {
@@ -177,11 +192,20 @@ private fun LibraryBookCard(item: LibraryBook, onOpen: () -> Unit, onDelete: () 
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text("Delete") },
-                        onClick = { menu = false; onDelete() },
-                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = "Delete book") },
+                        onClick = { menu = false; confirmDelete = true },
+                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                     )
                 }
             }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete ${item.book.title}?") },
+            text = { Text("Its pages, text, and cached speech are removed from this phone.") },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete() }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
     }
 }
