@@ -210,6 +210,7 @@ class AppUpdateManager @Inject constructor(
         installerPackage = installerPackage(),
         canRequestPackageInstalls = runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false),
         unknownSourcesRestricted = unknownSourcesRestricted(),
+        selfInstallSupported = BuildConfig.SELF_INSTALL_SUPPORTED,
     )
 
     /** Opens this app's Play listing, where an update installs even while Advanced Protection is on. */

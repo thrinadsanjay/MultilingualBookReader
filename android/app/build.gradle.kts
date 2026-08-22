@@ -14,14 +14,21 @@ val playKeystore = System.getenv("BOOKREADER_KEYSTORE_PATH")
     ?.let(::File)
     ?.takeIf(File::exists)
 
+// Voice cloning and cloud OCR call the project's own backend. Point release builds at it with
+// -PreleaseApiBaseUrl=https://... or BOOKREADER_API_BASE_URL; the default is deliberately unusable.
+val releaseApiBaseUrl: String = (findProperty("releaseApiBaseUrl") as String?)
+    ?: System.getenv("BOOKREADER_API_BASE_URL")
+    ?: "https://api.example.com/"
+
 android {
     namespace = "com.multilingualbookreader"
-    compileSdk = 35
+    // Play requires new apps and updates to target Android 16 from 31 August 2026.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.multilingualbookreader"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         // Bump versionCode whenever testers should receive an in-app update.
         versionCode = 9
         versionName = "0.1.8"
@@ -44,6 +51,7 @@ android {
         debug {
             isMinifyEnabled = false
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "true")
+            buildConfigField("boolean", "SELF_INSTALL_SUPPORTED", "true")
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
             buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
             buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
@@ -57,7 +65,9 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "false")
-            buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
+            // Release builds omit REQUEST_INSTALL_PACKAGES, so updates always come from Play.
+            buildConfigField("boolean", "SELF_INSTALL_SUPPORTED", "false")
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
             buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }

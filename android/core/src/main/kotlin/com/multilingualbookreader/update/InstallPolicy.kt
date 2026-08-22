@@ -23,12 +23,19 @@ enum class InstallChannel {
 object InstallPolicy {
     const val PLAY_STORE_PACKAGE = "com.android.vending"
 
+    /**
+     * @param selfInstallSupported whether this build ships the install permission at all. Release
+     * builds do not, because sideloading test builds is a debug-only affordance and Play treats
+     * REQUEST_INSTALL_PACKAGES as sensitive.
+     */
     fun channel(
         installerPackage: String?,
         canRequestPackageInstalls: Boolean,
         unknownSourcesRestricted: Boolean,
+        selfInstallSupported: Boolean = true,
     ): InstallChannel = when {
         installerPackage == PLAY_STORE_PACKAGE -> InstallChannel.PLAY
+        !selfInstallSupported -> InstallChannel.PLAY
         unknownSourcesRestricted -> InstallChannel.BLOCKED
         canRequestPackageInstalls -> InstallChannel.DIRECT
         else -> InstallChannel.NEEDS_PERMISSION

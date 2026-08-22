@@ -45,6 +45,17 @@ class InstallPolicyTest {
     }
 
     @Test
+    fun releaseBuildsWithoutTheInstallPermissionDeferToPlay() {
+        val channel = InstallPolicy.channel(
+            installerPackage = null,
+            canRequestPackageInstalls = false,
+            unknownSourcesRestricted = false,
+            selfInstallSupported = false,
+        )
+        assertThat(channel).isEqualTo(InstallChannel.PLAY)
+    }
+
+    @Test
     fun onlySideloadChannelsDownloadAnApk() {
         assertThat(InstallPolicy.downloadIsPointless(InstallChannel.PLAY)).isTrue()
         assertThat(InstallPolicy.downloadIsPointless(InstallChannel.BLOCKED)).isTrue()
