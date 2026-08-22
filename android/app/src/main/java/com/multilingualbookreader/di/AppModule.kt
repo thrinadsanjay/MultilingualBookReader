@@ -31,6 +31,8 @@ import com.multilingualbookreader.domain.usecase.SearchBookUseCase
 import com.multilingualbookreader.language.ScriptLanguageDetector
 import com.multilingualbookreader.network.AuthInterceptor
 import com.multilingualbookreader.network.BookReaderApi
+import com.multilingualbookreader.network.PlainHttp
+import com.multilingualbookreader.update.GitHubReleaseApi
 import com.multilingualbookreader.ocr.CompositeOcrEngine
 import com.multilingualbookreader.text.DefaultTextProcessor
 import com.multilingualbookreader.text.SentenceSegmenter
@@ -104,16 +106,52 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun okHttp(auth: AuthInterceptor): OkHttpClient {
+    @PlainHttp
+    fun plainOkHttp(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
-            .addInterceptor(auth)
             .addInterceptor(logging)
-            .callTimeout(120, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "MultilingualBookReader/${BuildConfig.VERSION_NAME}")
+                        .build(),
+                )
+            }
+            .callTimeout(180, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun okHttp(auth: AuthInterceptor, @PlainHttp plain: OkHttpClient): OkHttpClient {
+        return plain.newBuilder()
+            .addInterceptor(auth)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun gitHubApi(@PlainHttp client: OkHttpClient, json: Json): GitHubReleaseApi {
+        val contentType = "application/json".toMediaType()
+        val githubClient = client.newBuilder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("Accept", "application/vnd.github+json")
+                        .build(),
+                )
+            }
+            .build()
+        return Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .client(githubClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(GitHubReleaseApi::class.java)
     }
 
     @Provides

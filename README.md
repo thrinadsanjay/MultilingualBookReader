@@ -60,6 +60,16 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 4. Point Settings → backend URL at your machine (`http://10.0.2.2:8080/` for the emulator).
 5. Run the `app` configuration.
 
+### Install on a phone (no Android Studio)
+
+Android cannot silently replace an installed app. After you have a build that includes the in-app updater, later test builds install from **Home** or **Settings**.
+
+1. Install **v0.1.1 once** from [the v0.1.1-debug release](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/v0.1.1-debug) (`BookReader-2-debug.apk`). The older v0.1.0 APK cannot update itself.
+2. Open Book Reader → **Check for update** → **Download** → allow “Install unknown apps” for Book Reader if Android asks → **Install**.
+3. Confirm the system installer. That one tap is required on every update.
+
+New test APKs are published as GitHub prereleases named `BookReader-{versionCode}-debug.apk` (see the rolling [`testing-latest`](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/testing-latest) release after merges to `main`). Bump `versionCode` in `android/app/build.gradle.kts` whenever testers should receive an update. The repository must stay **public** so the app can list and download those releases without a token.
+
 See [ARCHITECTURE.md](ARCHITECTURE.md), [API.md](API.md), [DEPLOYMENT.md](DEPLOYMENT.md), and the other docs in this folder.
 
 ## Tests

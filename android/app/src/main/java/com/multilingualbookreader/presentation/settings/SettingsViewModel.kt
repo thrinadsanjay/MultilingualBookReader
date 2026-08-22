@@ -8,6 +8,7 @@ import com.multilingualbookreader.domain.model.ThemeMode
 import com.multilingualbookreader.domain.repository.SettingsRepository
 import com.multilingualbookreader.network.BookReaderApi
 import com.multilingualbookreader.network.EncryptedTokenStore
+import com.multilingualbookreader.update.AppUpdateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,8 +20,10 @@ class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val api: BookReaderApi,
     private val tokens: EncryptedTokenStore,
+    val updates: AppUpdateManager,
 ) : ViewModel() {
     val state = settings.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+    val updateState = updates.state
     var authMessage: String? = null
         private set
 
@@ -43,6 +46,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun signOut() = tokens.clear()
+
+    fun checkUpdate() {
+        viewModelScope.launch { updates.check() }
+    }
+
+    fun downloadUpdate() {
+        viewModelScope.launch { updates.download() }
+    }
 
     private fun update(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch { settings.update(transform) }

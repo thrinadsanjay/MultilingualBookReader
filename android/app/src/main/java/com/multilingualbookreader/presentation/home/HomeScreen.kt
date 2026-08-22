@@ -24,6 +24,9 @@ import com.multilingualbookreader.R
 import com.multilingualbookreader.presentation.components.LargeButton
 import com.multilingualbookreader.presentation.components.OnlineBanner
 import com.multilingualbookreader.presentation.components.ScreenHeader
+import com.multilingualbookreader.presentation.update.UpdateSection
+import com.multilingualbookreader.update.AppUpdateManager
+import com.multilingualbookreader.update.UpdateUiState
 
 @Composable
 fun HomeRoute(
@@ -36,14 +39,19 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     HomeScreen(
         state = state,
+        updateState = updateState,
+        updateManager = viewModel.updates,
         onScan = onScan,
         onImportPdf = onImportPdf,
         onLibrary = onLibrary,
         onVoice = onVoice,
         onSettings = onSettings,
         onContinue = onContinue,
+        onCheckUpdate = viewModel::checkUpdate,
+        onDownloadUpdate = viewModel::downloadUpdate,
     )
 }
 
@@ -57,6 +65,10 @@ fun HomeScreen(
     onVoice: () -> Unit,
     onSettings: () -> Unit,
     onContinue: (String) -> Unit,
+    updateState: UpdateUiState = UpdateUiState(),
+    updateManager: AppUpdateManager? = null,
+    onCheckUpdate: () -> Unit = {},
+    onDownloadUpdate: () -> Unit = {},
 ) {
     Scaffold { padding ->
         Column(
@@ -102,6 +114,14 @@ fun HomeScreen(
                     }
                 }
                 LargeButton(stringResource(R.string.settings), onSettings, tonal = true)
+                updateManager?.let { manager ->
+                    UpdateSection(
+                        state = updateState,
+                        manager = manager,
+                        onCheck = onCheckUpdate,
+                        onDownload = onDownloadUpdate,
+                    )
+                }
             }
         }
     }

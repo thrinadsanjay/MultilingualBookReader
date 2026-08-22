@@ -27,6 +27,9 @@ import com.multilingualbookreader.domain.model.OcrRoute
 import com.multilingualbookreader.domain.model.ThemeMode
 import com.multilingualbookreader.presentation.components.LargeButton
 import com.multilingualbookreader.presentation.components.ScreenHeader
+import com.multilingualbookreader.presentation.update.UpdateSection
+import com.multilingualbookreader.update.AppUpdateManager
+import com.multilingualbookreader.update.UpdateUiState
 
 @Composable
 fun SettingsRoute(
@@ -36,6 +39,7 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     SettingsScreen(
         theme = state.themeMode,
         fontScale = state.fontScale,
@@ -54,6 +58,10 @@ fun SettingsRoute(
         onPrivacy = onPrivacy,
         onVoiceTest = onVoiceTest,
         onBack = onBack,
+        updateState = updateState,
+        updateManager = viewModel.updates,
+        onCheckUpdate = viewModel::checkUpdate,
+        onDownloadUpdate = viewModel::downloadUpdate,
     )
 }
 
@@ -77,6 +85,10 @@ fun SettingsScreen(
     onPrivacy: () -> Unit,
     onVoiceTest: () -> Unit,
     onBack: () -> Unit,
+    updateState: UpdateUiState = UpdateUiState(),
+    updateManager: AppUpdateManager? = null,
+    onCheckUpdate: () -> Unit = {},
+    onDownloadUpdate: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -118,6 +130,14 @@ fun SettingsScreen(
                 OcrRoute.entries.forEach { route ->
                     FilterChip(selected = ocrRoute == route, onClick = { onOcr(route) }, label = { Text(route.name.lowercase().replaceFirstChar { it.titlecase() }) })
                 }
+            }
+            updateManager?.let { manager ->
+                UpdateSection(
+                    state = updateState,
+                    manager = manager,
+                    onCheck = onCheckUpdate,
+                    onDownload = onDownloadUpdate,
+                )
             }
             LargeButton("Compare voices", onVoiceTest, tonal = true)
             LargeButton("Privacy", onPrivacy, tonal = true)

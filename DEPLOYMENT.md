@@ -72,6 +72,17 @@ docker build -t book-reader-api .
 docker run --env-file .env -p 8080:8080 book-reader-api
 ```
 
+## Sideload test updates
+
+The debug app checks public GitHub Releases and can install a newer APK from Home or Settings.
+
+- Filename: `BookReader-{versionCode}-debug.apk` (example: `BookReader-3-debug.apk`)
+- Or put `versionCode=3` in the release body if the filename has no integer code
+- Bump `versionCode` in `android/app/build.gradle.kts` for every build testers should receive
+- CI workflow `.github/workflows/publish-debug-apk.yml` publishes a rolling `testing-latest` prerelease on pushes to `main`
+- The user still confirms the Android package installer; the app cannot replace itself silently
+- In-app checks use the unauthenticated GitHub API, so the repository must be public
+
 ## Production Android
 
 - `release` BuildConfig uses `https://api.example.com/` — replace with your host before shipping.

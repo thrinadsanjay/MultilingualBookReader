@@ -15,8 +15,9 @@ android {
         applicationId = "com.multilingualbookreader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // Bump versionCode whenever testers should receive an in-app update.
+        versionCode = 2
+        versionName = "0.1.1"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -26,6 +27,8 @@ android {
             isMinifyEnabled = false
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "true")
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
+            buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }
         release {
             isMinifyEnabled = true
@@ -36,6 +39,8 @@ android {
             )
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "false")
             buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
+            buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
+            buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }
     }
 
