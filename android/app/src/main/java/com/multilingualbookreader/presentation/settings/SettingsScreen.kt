@@ -396,12 +396,22 @@ fun PrivacyScreen(
 
 @Composable
 fun HelpRoute(onBack: () -> Unit) {
-    SimpleInfoScreen("Help & feedback", "For issues, open a GitHub issue on MultilingualBookReader or email the maintainer. Include the app version, not book contents or voice recordings.", onBack)
+    SimpleInfoScreen(
+        "Help & feedback",
+        "For issues, open a GitHub issue on the Svara repository or email the maintainer. " +
+            "Include the app version, not book contents or voice recordings.",
+        onBack,
+    )
 }
 
 @Composable
 fun AboutRoute(onBack: () -> Unit) {
-    SimpleInfoScreen("About", "Book Reader ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}). GPL-3.0. English, Hindi, and Telugu reading with optional custom voice.", onBack)
+    SimpleInfoScreen(
+        "About",
+        "Svara ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}). Read, listen, your voice. " +
+            "GPL-3.0. English, Hindi, and Telugu reading with optional custom voice.",
+        onBack,
+    )
 }
 
 @Composable

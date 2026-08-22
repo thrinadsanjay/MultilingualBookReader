@@ -76,7 +76,7 @@ docker run --env-file .env -p 8080:8080 book-reader-api
 
 The debug app checks public GitHub Releases and can install a newer APK from Settings → Check for updates.
 
-- Filename: `BookReader-{versionCode}-debug.apk` (example: `BookReader-3-debug.apk`)
+- Filename: `Svara-{versionCode}-debug.apk` (example: `Svara-10-debug.apk`); the older `BookReader-{versionCode}-debug.apk` name is still parsed
 - Or put `versionCode=3` in the release body if the filename has no integer code
 - Bump `versionCode` in `android/app/build.gradle.kts` for every build testers should receive
 - CI workflow `.github/workflows/publish-debug-apk.yml` publishes a rolling `testing-latest` prerelease on pushes to `main`
@@ -104,7 +104,9 @@ with a Play Console account.
 
 1. **Create a Play Console developer account** (one-time 25 USD, plus identity and, for individual
    accounts, D-U-N-S-free personal verification). CI cannot create or pay for this.
-2. **Create the app** with package name `com.multilingualbookreader`. The package name is permanent.
+2. **Create the app** named **Svara** with package name `com.multilingualbookreader`. The package
+   name is permanent and deliberately unchanged by the rename: changing it would orphan every
+   existing install. Check that the name "Svara" is free on Play before committing to the listing.
 3. **Generate an upload key** and keep it somewhere safe — losing it means you cannot ship updates:
    `keytool -genkeypair -v -keystore upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`
 4. **Create a Google Cloud service account**, grant it release permissions in Play Console, and

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="seed">#1B4B8A</color>
-    <color name="launcher_bg">#12325C</color>
-    <color name="launcher_fg">#FFFFFF</color>
+    <color name="seed">#F2622E</color>
+    <color name="launcher_bg">#141E33</color>
+    <color name="launcher_fg">#F2622E</color>
 </resources>

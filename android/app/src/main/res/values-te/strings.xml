@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">పుస్తకం రీడర్</string>
-    <string name="home_title">పుస్తకం రీడర్</string>
+    <string name="app_name">Svara</string>
+    <string name="home_title">Svara</string>
     <string name="scan_book">పుస్తకం స్కాన్ చేయండి</string>
     <string name="import_pdf">PDF దిగుమతి</string>
     <string name="my_library">నా లైబ్రరీ</string>

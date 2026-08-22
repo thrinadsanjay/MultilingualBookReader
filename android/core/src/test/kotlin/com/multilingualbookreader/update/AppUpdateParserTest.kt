@@ -10,6 +10,12 @@ class AppUpdateParserTest {
     }
 
     @Test
+    fun readsVersionFromBothTheOldAndRenamedAssets() {
+        assertThat(AppUpdateParser.versionFromAssetName("Svara-12-debug.apk")).isEqualTo(12)
+        assertThat(AppUpdateParser.versionFromAssetName("BookReader-11-debug.apk")).isEqualTo(11)
+    }
+
+    @Test
     fun choosesNewerReleaseOnly() {
         val newest = AppUpdateParser.chooseNewest(
             currentVersionCode = 2,

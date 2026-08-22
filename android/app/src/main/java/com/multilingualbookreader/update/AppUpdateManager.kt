@@ -99,7 +99,7 @@ class AppUpdateManager @Inject constructor(
                     val body = response.body ?: error("empty body")
                     val total = body.contentLength()
                     val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-                    val file = File(dir, "BookReader-update.apk")
+                    val file = File(dir, "Svara-update.apk")
                     body.byteStream().use { input ->
                         file.outputStream().use { output ->
                             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)

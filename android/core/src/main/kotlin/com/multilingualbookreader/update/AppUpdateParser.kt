@@ -9,7 +9,8 @@ data class AvailableUpdate(
 )
 
 object AppUpdateParser {
-    private val fileVersion = Regex("""BookReader-(\d+)(?:-debug)?\.apk""", RegexOption.IGNORE_CASE)
+    // Builds published before the rename are still named BookReader-<code>-debug.apk.
+    private val fileVersion = Regex("""(?:Svara|BookReader)-(\d+)(?:-debug)?\.apk""", RegexOption.IGNORE_CASE)
     private val bodyVersion = Regex("""versionCode\s*=\s*(\d+)""")
 
     fun versionFromAssetName(name: String): Int? = fileVersion.find(name)?.groupValues?.get(1)?.toInt()

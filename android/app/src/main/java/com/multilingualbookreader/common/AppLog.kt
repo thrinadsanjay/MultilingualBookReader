@@ -7,7 +7,7 @@ import com.multilingualbookreader.BuildConfig
  * Structured logger that never accepts book contents, voice bytes, tokens, or keys.
  */
 object AppLog {
-    private const val TAG = "BookReader"
+    private const val TAG = "Svara"
 
     fun d(event: String, extras: Map<String, Any?> = emptyMap()) {
         if (BuildConfig.ENABLE_VERBOSE_LOGS) {

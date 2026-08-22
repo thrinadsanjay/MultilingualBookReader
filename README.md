@@ -1,4 +1,4 @@
-# AI Multilingual Book Reader
+# Svara — read, listen, your voice
 
 Android app that turns printed pages and PDFs into a personal audiobook in **Telugu**, **Hindi**, and **English**. You scan or import a book, press Play, and listen. Reading position, bookmarks, notes, and cached speech stay on the phone.
 
@@ -79,7 +79,7 @@ To keep protection on, distribute through the Play internal testing track — se
 [DEPLOYMENT.md](DEPLOYMENT.md#testers-with-advanced-protection) for the one-time Play Console setup
 and `.github/workflows/play-internal.yml` for the upload job.
 
-New test APKs are published as GitHub prereleases named `BookReader-{versionCode}-debug.apk` (see the rolling [`testing-latest`](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/testing-latest) release after merges to `main`). Bump `versionCode` in `android/app/build.gradle.kts` whenever testers should receive an update. The repository must stay **public** so the app can list and download those releases without a token.
+New test APKs are published as GitHub prereleases named `Svara-{versionCode}-debug.apk` (see the rolling [`testing-latest`](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/testing-latest) release after merges to `main`). Builds published before the rename are named `BookReader-{versionCode}-debug.apk` and are still recognised by the updater. Bump `versionCode` in `android/app/build.gradle.kts` whenever testers should receive an update. The repository must stay **public** so the app can list and download those releases without a token.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [API.md](API.md), [DEPLOYMENT.md](DEPLOYMENT.md), and the other docs in this folder.
 

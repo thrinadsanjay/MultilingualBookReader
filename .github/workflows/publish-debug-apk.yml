@@ -30,9 +30,9 @@ jobs:
           set -euo pipefail
           VERSION_CODE=$(grep -oP 'versionCode = \K[0-9]+' android/app/build.gradle.kts | head -1)
           VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' android/app/build.gradle.kts | head -1)
-          APK_NAME="BookReader-${VERSION_CODE}-debug.apk"
+          APK_NAME="Svara-${VERSION_CODE}-debug.apk"
           cp android/app/build/outputs/apk/debug/app-debug.apk "$APK_NAME"
-          NOTES=$(printf 'versionCode=%s\n\nInstall from Home or Settings → Check for update.\nAndroid will ask you to allow installs from Book Reader once, then confirm the system installer.\nThis rolling prerelease is replaced on every publish.' "$VERSION_CODE")
+          NOTES=$(printf 'versionCode=%s\n\nInstall from Settings → Check for updates.\nAndroid will ask you to allow installs from Svara once, then confirm the system installer.\nThis rolling prerelease is replaced on every publish.' "$VERSION_CODE")
           if gh release view testing-latest >/dev/null 2>&1; then
             gh release delete testing-latest --yes
             git push origin :refs/tags/testing-latest || true
