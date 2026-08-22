@@ -26,9 +26,13 @@ fun UpdateSection(
 ) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("App updates", style = MaterialTheme.typography.headlineMedium)
-        Text("Installed: ${state.currentVersion}")
-        Text("New test builds install from here. Android will ask you to allow installs from Book Reader once, then confirm the update.")
+        Text("App updates", style = MaterialTheme.typography.titleMedium)
+        Text("Installed: ${state.currentVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "New test builds install from here. Android will ask you to allow installs from Book Reader once.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         state.message?.let { Text(it) }
         if (state.downloading) {
             LinearProgressIndicator(progress = { state.progressPercent / 100f }, modifier = Modifier)

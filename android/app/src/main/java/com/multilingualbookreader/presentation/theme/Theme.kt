@@ -18,31 +18,53 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF1B4B8A),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD6E4FF),
-    secondary = Color(0xFF8A4B1B),
-    background = Color(0xFFF7F4EC),
-    onBackground = Color(0xFF1C1B16),
-    surface = Color(0xFFFFFBF3),
-    onSurface = Color(0xFF1C1B16),
+    primary = Color(0xFF8C4A1F),
+    onPrimary = Color(0xFFFFF8F1),
+    primaryContainer = Color(0xFFF3D4B8),
+    onPrimaryContainer = Color(0xFF3D1E08),
+    secondary = Color(0xFF3F6B5A),
+    onSecondary = Color(0xFFF4FFF8),
+    secondaryContainer = Color(0xFFD5E8DE),
+    onSecondaryContainer = Color(0xFF13261E),
+    background = Color(0xFFF6F0E6),
+    onBackground = Color(0xFF2B241C),
+    surface = Color(0xFFFFF9F1),
+    onSurface = Color(0xFF2B241C),
+    surfaceVariant = Color(0xFFE8DDD0),
+    onSurfaceVariant = Color(0xFF5B5147),
+    surfaceContainer = Color(0xFFEFE6D8),
+    surfaceContainerHigh = Color(0xFFE7DCCB),
+    surfaceTint = Color.Transparent,
+    outline = Color(0xFFC9B9A6),
+    outlineVariant = Color(0xFFE4D6C4),
     error = Color(0xFFB3261E),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF9DC0FF),
-    onPrimary = Color(0xFF0B2A54),
-    primaryContainer = Color(0xFF163864),
-    secondary = Color(0xFFE0B48A),
-    background = Color(0xFF121318),
-    onBackground = Color(0xFFE8E6DE),
-    surface = Color(0xFF1B1C22),
-    onSurface = Color(0xFFE8E6DE),
+    primary = Color(0xFFE6B07A),
+    onPrimary = Color(0xFF3A220C),
+    primaryContainer = Color(0xFF6B3F1C),
+    onPrimaryContainer = Color(0xFFFFE4C6),
+    secondary = Color(0xFF9CCBBA),
+    onSecondary = Color(0xFF123028),
+    secondaryContainer = Color(0xFF2A463C),
+    onSecondaryContainer = Color(0xFFD7F0E6),
+    background = Color(0xFF161310),
+    onBackground = Color(0xFFF3E7D6),
+    surface = Color(0xFF211C18),
+    onSurface = Color(0xFFF3E7D6),
+    surfaceVariant = Color(0xFF3A332C),
+    onSurfaceVariant = Color(0xFFD2C4B4),
+    surfaceContainer = Color(0xFF261F1A),
+    surfaceContainerHigh = Color(0xFF302822),
+    surfaceTint = Color.Transparent,
+    outline = Color(0xFF6E6358),
+    outlineVariant = Color(0xFF3F372F),
     error = Color(0xFFFFB4AB),
 )
 
 private val HighContrastLight = lightColorScheme(
-    primary = Color(0xFF002F6C),
+    primary = Color(0xFF5A2500),
     onPrimary = Color.White,
     background = Color.White,
     onBackground = Color.Black,
@@ -52,7 +74,7 @@ private val HighContrastLight = lightColorScheme(
 )
 
 private val HighContrastDark = darkColorScheme(
-    primary = Color(0xFFFFF176),
+    primary = Color(0xFFFFE082),
     onPrimary = Color.Black,
     background = Color.Black,
     onBackground = Color.White,
@@ -62,8 +84,8 @@ private val HighContrastDark = darkColorScheme(
 )
 
 data class ControlSizes(
-    val minTouch: Dp = 64.dp,
-    val largeButtonHeight: Dp = 68.dp,
+    val minTouch: Dp = 48.dp,
+    val largeButtonHeight: Dp = 48.dp,
 )
 
 val LocalControlSizes = staticCompositionLocalOf { ControlSizes() }
@@ -81,16 +103,15 @@ fun BookReaderTheme(
         darkTheme -> DarkColors
         else -> LightColors
     }
-    val typography = bookTypography(fontScale)
     CompositionLocalProvider(LocalControlSizes provides ControlSizes()) {
         MaterialTheme(
             colorScheme = colors,
-            typography = typography,
+            typography = bookTypography(fontScale),
             shapes = MaterialTheme.shapes.copy(
-                extraSmall = RoundedCornerShape(8.dp),
+                extraSmall = RoundedCornerShape(10.dp),
                 small = RoundedCornerShape(12.dp),
-                medium = RoundedCornerShape(18.dp),
-                large = RoundedCornerShape(24.dp),
+                medium = RoundedCornerShape(16.dp),
+                large = RoundedCornerShape(20.dp),
             ),
             content = content,
         )
@@ -98,14 +119,16 @@ fun BookReaderTheme(
 }
 
 private fun bookTypography(scale: Float): Typography {
-    val body = (22 * scale).sp
-    val title = (30 * scale).sp
+    val family = FontFamily.SansSerif
     return Typography(
-        displaySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = title),
-        headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = (26 * scale).sp),
-        titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = (24 * scale).sp),
-        bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = body, lineHeight = (32 * scale).sp),
-        bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = (18 * scale).sp, lineHeight = (26 * scale).sp),
-        labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = (18 * scale).sp),
+        displaySmall = TextStyle(fontFamily = family, fontWeight = FontWeight.SemiBold, fontSize = (22 * scale).sp, lineHeight = (28 * scale).sp),
+        headlineMedium = TextStyle(fontFamily = family, fontWeight = FontWeight.SemiBold, fontSize = (18 * scale).sp, lineHeight = (24 * scale).sp),
+        titleLarge = TextStyle(fontFamily = family, fontWeight = FontWeight.SemiBold, fontSize = (17 * scale).sp, lineHeight = (22 * scale).sp),
+        titleMedium = TextStyle(fontFamily = family, fontWeight = FontWeight.Medium, fontSize = (15 * scale).sp, lineHeight = (20 * scale).sp),
+        bodyLarge = TextStyle(fontFamily = family, fontWeight = FontWeight.Normal, fontSize = (15 * scale).sp, lineHeight = (22 * scale).sp),
+        bodyMedium = TextStyle(fontFamily = family, fontWeight = FontWeight.Normal, fontSize = (14 * scale).sp, lineHeight = (20 * scale).sp),
+        bodySmall = TextStyle(fontFamily = family, fontWeight = FontWeight.Normal, fontSize = (12 * scale).sp, lineHeight = (16 * scale).sp),
+        labelLarge = TextStyle(fontFamily = family, fontWeight = FontWeight.Medium, fontSize = (14 * scale).sp, lineHeight = (18 * scale).sp),
+        labelMedium = TextStyle(fontFamily = family, fontWeight = FontWeight.Medium, fontSize = (12 * scale).sp, lineHeight = (16 * scale).sp),
     )
 }

@@ -3,6 +3,7 @@ package com.multilingualbookreader.presentation.library
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,10 +34,11 @@ import com.multilingualbookreader.presentation.components.ScreenHeader
 fun LibraryRoute(
     onOpen: (String) -> Unit,
     onBack: () -> Unit,
+    showBack: Boolean = true,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val books by viewModel.booksState.collectAsStateWithLifecycle()
-    LibraryScreen(books, onOpen, onBack, viewModel::delete)
+    LibraryScreen(books, onOpen, onBack, viewModel::delete, showBack)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,21 +48,26 @@ fun LibraryScreen(
     onOpen: (String) -> Unit,
     onBack: () -> Unit,
     onDelete: (String) -> Unit,
+    showBack: Boolean = true,
 ) {
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("My Library") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    if (showBack) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
             )
         },
     ) { padding ->
         if (books.isEmpty()) {
-            Column(Modifier.fillMaxSize().padding(padding).padding(24.dp)) {
+            Column(Modifier.fillMaxSize().padding(padding).padding(20.dp)) {
                 ScreenHeader("My Library", "Imported and scanned books will appear here.")
             }
         } else {

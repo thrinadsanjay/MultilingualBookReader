@@ -129,7 +129,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private fun Preferences.toSettings() = AppSettings(
         themeMode = ThemeMode.valueOf(this[Keys.THEME] ?: ThemeMode.SYSTEM.name),
-        fontScale = this[Keys.FONT] ?: 1.25f,
+        fontScale = this[Keys.FONT] ?: 1.0f,
         highContrast = this[Keys.CONTRAST] ?: false,
         reduceMotion = this[Keys.MOTION] ?: true,
         playbackSpeed = this[Keys.SPEED] ?: 1.0f,

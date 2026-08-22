@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,7 @@ import com.multilingualbookreader.presentation.reader.defaultStandardVoice
 fun VoiceRoute(
     onBack: () -> Unit,
     onTest: () -> Unit,
+    showBack: Boolean = true,
     viewModel: VoiceViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -71,6 +73,7 @@ fun VoiceRoute(
         onSelect = viewModel::select,
         onTest = onTest,
         onBack = onBack,
+        showBack = showBack,
     )
 }
 
@@ -90,13 +93,18 @@ fun VoiceScreen(
     onSelect: (VoiceProfile) -> Unit,
     onTest: () -> Unit,
     onBack: () -> Unit,
+    showBack: Boolean = true,
 ) {
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("My Voice") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    if (showBack) {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    }
                 },
             )
         },

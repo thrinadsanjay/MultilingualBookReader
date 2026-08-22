@@ -64,7 +64,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 
 Android cannot silently replace an installed app. After you have a build that includes the in-app updater, later test builds install from **Home** or **Settings**.
 
-1. Install **v0.1.1 once** from [the v0.1.1-debug release](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/v0.1.1-debug) (`BookReader-2-debug.apk`). The older v0.1.0 APK cannot update itself.
+1. If you still have v0.1.0, install **v0.1.1 once** from [the v0.1.1-debug release](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/v0.1.1-debug) so the in-app updater is available. After that, Home or Settings → **Check for update** installs newer test builds such as v0.1.2.
 2. Open Book Reader → **Check for update** → **Download** → allow “Install unknown apps” for Book Reader if Android asks → **Install**.
 3. Confirm the system installer. That one tap is required on every update.
 

@@ -1,11 +1,21 @@
 package com.multilingualbookreader.presentation.navigation
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.multilingualbookreader.presentation.components.AppTab
+import com.multilingualbookreader.presentation.components.ReaderBottomBar
+import com.multilingualbookreader.presentation.components.appTabForRoute
 import com.multilingualbookreader.presentation.home.HomeRoute
 import com.multilingualbookreader.presentation.library.LibraryRoute
 import com.multilingualbookreader.presentation.pdf.PdfImportRoute
@@ -33,70 +43,105 @@ object Routes {
 @Composable
 fun BookReaderNavHost() {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = Routes.Home) {
-        composable(Routes.Home) {
-            HomeRoute(
-                onScan = { nav.navigate("scan?bookId=") },
-                onImportPdf = { nav.navigate(Routes.PdfImport) },
-                onLibrary = { nav.navigate(Routes.Library) },
-                onVoice = { nav.navigate(Routes.Voice) },
-                onSettings = { nav.navigate(Routes.Settings) },
-                onContinue = { bookId -> nav.navigate("reader/$bookId") },
-            )
-        }
-        composable(Routes.Library) {
-            LibraryRoute(
-                onOpen = { nav.navigate("reader/$it") },
-                onBack = { nav.popBackStack() },
-            )
-        }
-        composable(Routes.Settings) {
-            SettingsRoute(
-                onPrivacy = { nav.navigate(Routes.Privacy) },
-                onVoiceTest = { nav.navigate(Routes.VoiceTest) },
-                onBack = { nav.popBackStack() },
-            )
-        }
-        composable(Routes.Privacy) { PrivacyRoute(onBack = { nav.popBackStack() }) }
-        composable(
-            route = Routes.Scan,
-            arguments = listOf(navArgument("bookId") { type = NavType.StringType; defaultValue = "" }),
+    val entry by nav.currentBackStackEntryAsState()
+    val route = entry?.destination?.route
+    val showBottomBar = appTabForRoute(route) != null
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            if (showBottomBar) {
+                ReaderBottomBar(currentRoute = route) { tab ->
+                    if (route != tab.route) {
+                        nav.navigate(tab.route) {
+                            popUpTo(nav.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = nav,
+            startDestination = Routes.Home,
+            modifier = Modifier.padding(padding),
         ) {
-            ScanRoute(
-                onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
-                onBack = { nav.popBackStack() },
-            )
-        }
-        composable(Routes.PdfImport) {
-            PdfImportRoute(
-                onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
-                onBack = { nav.popBackStack() },
-            )
-        }
-        composable(
-            route = Routes.Reader,
-            arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
-        ) {
-            val bookId = it.arguments?.getString("bookId").orEmpty()
-            ReaderRoute(
-                bookId = bookId,
-                onBack = { nav.popBackStack() },
-                onSearch = { nav.navigate("search/$bookId") },
-            )
-        }
-        composable(Routes.Voice) { VoiceRoute(onBack = { nav.popBackStack() }, onTest = { nav.navigate(Routes.VoiceTest) }) }
-        composable(Routes.VoiceTest) { VoiceTestRoute(onBack = { nav.popBackStack() }) }
-        composable(
-            route = Routes.Search,
-            arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
-        ) {
-            SearchRoute(
-                bookId = it.arguments?.getString("bookId").orEmpty(),
-                onOpenPage = { page ->
-                    nav.popBackStack()
-                },
-                onBack = { nav.popBackStack() },
-            )
+            composable(Routes.Home) {
+                HomeRoute(
+                    onScan = { nav.navigate("scan?bookId=") },
+                    onImportPdf = { nav.navigate(Routes.PdfImport) },
+                    onLibrary = { nav.navigate(AppTab.Library.route) },
+                    onVoice = { nav.navigate(AppTab.Voice.route) },
+                    onSettings = { nav.navigate(AppTab.Settings.route) },
+                    onContinue = { bookId -> nav.navigate("reader/$bookId") },
+                )
+            }
+            composable(Routes.Library) {
+                LibraryRoute(
+                    onOpen = { nav.navigate("reader/$it") },
+                    onBack = { nav.popBackStack() },
+                    showBack = false,
+                )
+            }
+            composable(Routes.Settings) {
+                SettingsRoute(
+                    onPrivacy = { nav.navigate(Routes.Privacy) },
+                    onVoiceTest = { nav.navigate(Routes.VoiceTest) },
+                    onBack = { nav.popBackStack() },
+                    showBack = false,
+                )
+            }
+            composable(Routes.Privacy) { PrivacyRoute(onBack = { nav.popBackStack() }) }
+            composable(
+                route = Routes.Scan,
+                arguments = listOf(navArgument("bookId") { type = NavType.StringType; defaultValue = "" }),
+            ) {
+                ScanRoute(
+                    onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.PdfImport) {
+                PdfImportRoute(
+                    onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(
+                route = Routes.Reader,
+                arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
+            ) {
+                val bookId = it.arguments?.getString("bookId").orEmpty()
+                ReaderRoute(
+                    bookId = bookId,
+                    onBack = { nav.popBackStack() },
+                    onSearch = { nav.navigate("search/$bookId") },
+                )
+            }
+            composable(Routes.Voice) {
+                VoiceRoute(
+                    onBack = { nav.popBackStack() },
+                    onTest = { nav.navigate(Routes.VoiceTest) },
+                    showBack = false,
+                )
+            }
+            composable(Routes.VoiceTest) { VoiceTestRoute(onBack = { nav.popBackStack() }) }
+            composable(
+                route = Routes.Search,
+                arguments = listOf(navArgument("bookId") { type = NavType.StringType }),
+            ) {
+                SearchRoute(
+                    bookId = it.arguments?.getString("bookId").orEmpty(),
+                    onOpenPage = { _ ->
+                        nav.popBackStack()
+                    },
+                    onBack = { nav.popBackStack() },
+                )
+            }
         }
     }
 }

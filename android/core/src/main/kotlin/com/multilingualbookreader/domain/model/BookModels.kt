@@ -92,7 +92,7 @@ data class Note(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val fontScale: Float = 1.25f,
+    val fontScale: Float = 1.0f,
     val highContrast: Boolean = false,
     val reduceMotion: Boolean = true,
     val playbackSpeed: Float = 1.0f,
