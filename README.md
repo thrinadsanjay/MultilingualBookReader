@@ -65,8 +65,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8080
 Android cannot silently replace an installed app. After you have a build that includes the in-app updater, later test builds install from **Home** or **Settings**.
 
 1. If you still have v0.1.0, install **v0.1.1 once** from [the v0.1.1-debug release](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/v0.1.1-debug) so the in-app updater is available. After that, Home or Settings → **Check for update** installs newer test builds such as v0.1.2.
-2. Open Book Reader → **Check for update** → **Download** → allow “Install unknown apps” for Book Reader if Android asks → **Install**.
-3. Confirm the system installer. That one tap is required on every update.
+2. Open Book Reader → **Check for update**. If the phone allows it, download and install from the app. If Advanced Protection or a work policy blocks Book Reader as an installer, tap **Open in browser** and install from Chrome or Files — leave device security on.
+3. Confirm the system installer when Android shows it. The app cannot silently replace itself, and it cannot override Advanced Protection.
 
 New test APKs are published as GitHub prereleases named `BookReader-{versionCode}-debug.apk` (see the rolling [`testing-latest`](https://github.com/thrinadsanjay/MultilingualBookReader/releases/tag/testing-latest) release after merges to `main`). Bump `versionCode` in `android/app/build.gradle.kts` whenever testers should receive an update. The repository must stay **public** so the app can list and download those releases without a token.
 

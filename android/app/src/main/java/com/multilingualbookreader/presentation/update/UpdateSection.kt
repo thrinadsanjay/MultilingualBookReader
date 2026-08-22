@@ -1,9 +1,5 @@
 package com.multilingualbookreader.presentation.update
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,11 +21,16 @@ fun UpdateSection(
     onDownload: () -> Unit,
 ) {
     val context = LocalContext.current
+    val directInstall = manager.canInstallFromThisApp()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("App updates", style = MaterialTheme.typography.titleMedium)
         Text("Installed: ${state.currentVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            "New test builds install from here. Android will ask you to allow installs from Book Reader once.",
+            if (directInstall) {
+                "New test builds can install from here, or from Chrome / Files."
+            } else {
+                "This phone blocks installs from Book Reader (Advanced Protection or a work policy). Leave device security on. Open the update in Chrome or Files instead — the same way the first APK was installed."
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -44,34 +45,31 @@ fun UpdateSection(
             tonal = true,
             enabled = !state.checking && !state.downloading,
         )
-        if (state.available != null && state.downloadedFile == null) {
+        state.available?.let { update ->
             LargeButton(
-                text = "Download ${state.available.versionName}",
-                onClick = onDownload,
-                enabled = !state.downloading,
-            )
-        }
-        state.downloadedFile?.let { file ->
-            LargeButton(
-                text = "Install update",
+                text = "Open ${update.versionName} in browser",
                 onClick = {
-                    if (!context.packageManager.canRequestPackageInstallsSafe()) {
-                        context.findActivity()?.startActivity(manager.installPermissionIntent())
-                    } else {
-                        context.startActivity(manager.installIntent(file))
+                    manager.browserDownloadIntent(update.apkUrl)?.let { intent ->
+                        context.startActivity(intent)
                     }
                 },
             )
+            if (directInstall && state.downloadedFile == null) {
+                LargeButton(
+                    text = "Download in the app",
+                    onClick = onDownload,
+                    tonal = true,
+                    enabled = !state.downloading,
+                )
+            }
+        }
+        if (directInstall) {
+            state.downloadedFile?.let { file ->
+                LargeButton(
+                    text = "Install update",
+                    onClick = { context.startActivity(manager.installIntent(file)) },
+                )
+            }
         }
     }
-}
-
-private fun PackageManager.canRequestPackageInstallsSafe(): Boolean {
-    return runCatching { canRequestPackageInstalls() }.getOrDefault(true)
-}
-
-private fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }

@@ -81,6 +81,7 @@ The debug app checks public GitHub Releases and can install a newer APK from Hom
 - Bump `versionCode` in `android/app/build.gradle.kts` for every build testers should receive
 - CI workflow `.github/workflows/publish-debug-apk.yml` publishes a rolling `testing-latest` prerelease on pushes to `main`
 - The user still confirms the Android package installer; the app cannot replace itself silently
+- If Advanced Protection or a work policy blocks “Install unknown apps” for Book Reader, the app opens the APK in Chrome or Files instead. It cannot whitelist itself against that policy.
 - In-app checks use the unauthenticated GitHub API, so the repository must be public
 
 ## Production Android

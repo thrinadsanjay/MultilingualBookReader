@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }

@@ -2,6 +2,7 @@ package com.multilingualbookreader.update
 
 import android.content.Context
 import android.content.Intent
+import android.os.UserManager
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -123,6 +124,25 @@ class AppUpdateManager @Inject constructor(
                 )
                 null
             }
+        }
+    }
+
+    fun unknownSourcesRestricted(): Boolean {
+        val users = context.getSystemService(UserManager::class.java) ?: return false
+        return users.hasUserRestriction(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES) ||
+            users.hasUserRestriction(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY) ||
+            users.hasUserRestriction(UserManager.DISALLOW_INSTALL_APPS)
+    }
+
+    fun canInstallFromThisApp(): Boolean {
+        val allowed = runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false)
+        return !InstallPolicy.prefersBrowserInstall(allowed, unknownSourcesRestricted())
+    }
+
+    fun browserDownloadIntent(url: String? = _state.value.available?.apkUrl): Intent? {
+        val target = url ?: return null
+        return Intent(Intent.ACTION_VIEW, target.toUri()).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
 
