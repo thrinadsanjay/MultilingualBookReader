@@ -30,13 +30,23 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 14
-        versionName = "0.3.0"
+        versionCode = 15
+        versionName = "0.3.1"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }
 
     signingConfigs {
+        // Checked in on purpose. Gradle's default debug key is generated per machine, so test
+        // builds from a new CI runner or a rebuilt workstation could not update an existing
+        // install: Android rejects a signer change with "package conflicts with an existing
+        // package". This is a throwaway test key and must never be the Play upload key.
+        getByName("debug") {
+            storeFile = file("svara-debug.jks")
+            storePassword = "svaradebug"
+            keyAlias = "svara-debug"
+            keyPassword = "svaradebug"
+        }
         if (playKeystore != null) {
             create("play") {
                 storeFile = playKeystore

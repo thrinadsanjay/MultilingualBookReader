@@ -2,6 +2,8 @@ package com.multilingualbookreader.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
 import android.provider.Settings
@@ -137,12 +139,30 @@ class AppUpdateManager @Inject constructor(
             moveTo(UpdatePhase.Failed(UpdateStage.DOWNLOAD, update, UpdateMessages.DOWNLOAD_FAILED))
             return
         }
+        if (signerVerdict(file) == SignatureCheck.Verdict.DIFFERENT) {
+            AppLog.w("update_signer_mismatch")
+            moveTo(UpdatePhase.Failed(UpdateStage.INSTALL, update, SignatureCheck.DIFFERENT_SIGNER_MESSAGE))
+            return
+        }
         moveTo(UpdatePhase.Installing(update))
         runCatching { context.startActivity(installIntent(file)) }.onFailure {
             AppLog.w("update_install_launch_failed")
             moveTo(UpdatePhase.Failed(UpdateStage.INSTALL, update, UpdateMessages.INSTALL_FAILED))
         }
     }
+
+    /** Reads both signers so a doomed install is explained rather than attempted. */
+    private fun signerVerdict(file: File): SignatureCheck.Verdict = runCatching {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return SignatureCheck.Verdict.UNKNOWN
+        val manager = context.packageManager
+        val flag = PackageManager.GET_SIGNING_CERTIFICATES
+        val update = manager.getPackageArchiveInfo(file.absolutePath, flag)?.signers()
+        val installed = manager.getPackageInfo(context.packageName, flag).signers()
+        SignatureCheck.compare(installed, update.orEmpty())
+    }.getOrDefault(SignatureCheck.Verdict.UNKNOWN)
+
+    private fun PackageInfo.signers(): Set<String> =
+        signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet().orEmpty()
 
     /**
      * A successful install replaces this process, so coming back still in [UpdatePhase.Installing]
