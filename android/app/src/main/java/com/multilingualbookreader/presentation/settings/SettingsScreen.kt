@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
@@ -81,12 +82,15 @@ fun SettingsRoute(
     onHelp: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit,
+    onServer: () -> Unit = {},
     showBack: Boolean = true,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     SettingsScreen(
+        onServer = onServer,
+        serverConfigured = state.backendBaseUrl.isNotBlank(),
         updateSummary = updateSummary(updateState.phase, updateState.installedVersionName),
         theme = state.themeMode,
         fontScale = state.fontScale,
@@ -142,6 +146,8 @@ fun SettingsScreen(
     onDeleteAll: () -> Unit = {},
     showBack: Boolean = true,
     updateSummary: String = "v${BuildConfig.VERSION_NAME}",
+    onServer: () -> Unit = {},
+    serverConfigured: Boolean = false,
 ) {
     val brand = LocalBrand.current
     val dimens = LocalDimens.current
@@ -209,6 +215,12 @@ fun SettingsScreen(
                 ToggleRow("Reduce motion", Icons.Outlined.MotionPhotosOff, reduceMotion, onMotion)
             }
             SettingsSection("App") {
+                SettingsRow(
+                    "Reading server",
+                    Icons.Outlined.Cloud,
+                    if (serverConfigured) "Connected" else "Not set",
+                    onClick = onServer,
+                )
                 SettingsRow("Check for updates", Icons.Outlined.SystemUpdate, updateSummary, onClick = onUpdates)
                 SettingsRow("Privacy", Icons.Outlined.PrivacyTip, onClick = onPrivacy)
                 SettingsRow("Help & feedback", Icons.AutoMirrored.Outlined.HelpOutline, onClick = onHelp)

@@ -27,6 +27,7 @@ import com.multilingualbookreader.presentation.search.SearchRoute
 import com.multilingualbookreader.presentation.settings.AboutRoute
 import com.multilingualbookreader.presentation.settings.HelpRoute
 import com.multilingualbookreader.presentation.settings.PrivacyRoute
+import com.multilingualbookreader.presentation.settings.ServerRoute
 import com.multilingualbookreader.presentation.settings.SettingsRoute
 import com.multilingualbookreader.presentation.settings.UpdatesRoute
 import com.multilingualbookreader.presentation.voice.VoiceRoute
@@ -37,6 +38,7 @@ object Routes {
     const val Library = "library"
     const val Settings = "settings"
     const val Privacy = "privacy"
+    const val Server = "server"
     const val Updates = "updates"
     const val Help = "help"
     const val About = "about"
@@ -105,12 +107,14 @@ fun BookReaderNavHost() {
                     onPrivacy = { nav.navigate(Routes.Privacy) },
                     onVoiceTest = { nav.navigate(Routes.VoiceTest) },
                     onUpdates = { nav.navigate(Routes.Updates) },
+                    onServer = { nav.navigate(Routes.Server) },
                     onHelp = { nav.navigate(Routes.Help) },
                     onAbout = { nav.navigate(Routes.About) },
                     onBack = { nav.popBackStack() },
                     showBack = false,
                 )
             }
+            composable(Routes.Server) { ServerRoute(onBack = { nav.popBackStack() }) }
             composable(Routes.Privacy) { PrivacyRoute(onBack = { nav.popBackStack() }) }
             composable(Routes.Updates) { UpdatesRoute(onBack = { nav.popBackStack() }) }
             composable(Routes.Help) { HelpRoute(onBack = { nav.popBackStack() }) }

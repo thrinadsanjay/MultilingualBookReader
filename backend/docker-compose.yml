@@ -1,0 +1,29 @@
+services:
+  svara-api:
+    build: .
+    image: svara-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Password the server. The phone sends this as the X-API-Key header.
+      API_KEY: ${API_KEY:?set API_KEY in .env before starting}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env before starting}
+      DEBUG: "false"
+      OCR_PROVIDER: tesseract
+      TTS_PROVIDER: espeak
+      VOICE_PROVIDER: mock
+      DATABASE_URL: sqlite+aiosqlite:////data/svara.db
+      AUDIO_CACHE_DIR: /data/audio
+      VOICE_SAMPLE_DIR: /data/voice
+      RATE_LIMIT: 60/minute
+    volumes:
+      - svara-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  svara-data:

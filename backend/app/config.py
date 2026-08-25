@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     voice_sample_dir: str = "./storage/voice"
     cors_origins: str = "*"
 
+    # Set this to password the server: callers then send X-API-Key instead of signing in.
+    api_key: str = ""
+
     ocr_provider: str = "tesseract"
     tts_provider: str = "espeak"
     voice_provider: str = "mock"

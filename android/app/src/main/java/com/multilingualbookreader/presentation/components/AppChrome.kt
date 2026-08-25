@@ -43,7 +43,7 @@ fun appTabForRoute(route: String?): AppTab? = when (route) {
     "home" -> AppTab.Home
     "library" -> AppTab.Library
     "voice", "voice-test" -> AppTab.Voice
-    "settings", "privacy", "updates", "help", "about" -> AppTab.Settings
+    "settings", "privacy", "updates", "help", "about", "server" -> AppTab.Settings
     else -> null
 }
 

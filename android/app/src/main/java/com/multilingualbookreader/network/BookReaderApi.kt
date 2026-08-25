@@ -56,7 +56,22 @@ interface BookReaderApi {
 
     @GET("api/v1/status")
     suspend fun status(): ProviderStatus
+
+    /** Unauthenticated readiness probe used by Settings to test a server address. */
+    @GET("api/v1/ocr/health")
+    suspend fun ocrHealth(): OcrHealth
 }
+
+@Serializable
+data class OcrHealth(
+    val provider: String = "",
+    @SerialName("tesseract_version") val tesseractVersion: String = "",
+    val languages: List<String> = emptyList(),
+    @SerialName("telugu_ready") val teluguReady: Boolean = false,
+    @SerialName("hindi_ready") val hindiReady: Boolean = false,
+    @SerialName("english_ready") val englishReady: Boolean = false,
+    @SerialName("requires_api_key") val requiresApiKey: Boolean = false,
+)
 
 @Serializable
 data class AuthRequest(val email: String, val password: String)

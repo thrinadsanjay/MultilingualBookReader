@@ -47,6 +47,69 @@ cd android
 
 Emulator backend URL is already `http://10.0.2.2:8080/` in the debug BuildConfig. A physical phone needs your computer’s LAN IP and HTTP cleartext only for that IP (update `network_security_config.xml`).
 
+## Telugu OCR server
+
+English and Hindi are recognised on the phone. Telugu has no on-device model, so those pages are
+sent to this backend. It is the only part of reading that needs a server.
+
+### Host it
+
+```bash
+cd backend
+cp .env.example .env
+# set at least these two:
+#   API_KEY=$(openssl rand -base64 32)
+#   SECRET_KEY=$(openssl rand -base64 32)
+docker compose up -d --build
+```
+
+The image installs `tesseract-ocr-tel` and the build fails if the Telugu data is missing, so a
+container that starts can read Telugu. Put it behind HTTPS (Caddy, nginx, or a tunnel): the phone
+sends the API key on every request, and Android blocks plain `http` to anything but localhost.
+
+### Check it
+
+```bash
+curl https://your-server/api/v1/ocr/health
+```
+
+```json
+{"provider":"tesseract","languages":["eng","hin","osd","tel"],"telugu_ready":true,"requires_api_key":true}
+```
+
+`telugu_ready: false` means the container is missing `tesseract-ocr-tel`. This endpoint needs no
+credentials so a deployment can be verified from a browser; it exposes nothing but capability.
+
+### Read a page
+
+```bash
+curl -X POST https://your-server/api/v1/ocr \
+  -H "X-API-Key: $API_KEY" \
+  -F image=@page.jpg \
+  -F hint_language=te
+```
+
+Returns `{ "text": ..., "language": "te", "confidence": 0.0-1.0, "blocks": [...], "engine": "tesseract" }`.
+A wrong or missing key returns 401. If the server is running but Telugu data is absent, `/ocr`
+returns **503** with an explanation rather than pretending the page was unreadable.
+
+The same key also unlocks `/tts` and the audio endpoints, so a single-user deployment never needs
+to create accounts. User accounts still work if you prefer them; leave `API_KEY` empty.
+
+### Point the phone at it
+
+Settings → **Reading server** → enter the address and key → **Test connection**. The reply states
+whether Telugu is ready and which models are installed. Nothing is rebuilt; the app rewrites its
+requests onto whatever address is saved.
+
+### Tuning notes
+
+Telugu accuracy depends heavily on image quality. The server converts pages to grayscale, stretches
+contrast, and upscales anything narrower than 1400 px, because Tesseract is trained on roughly
+300 DPI scans and Telugu conjuncts lose their shape at low resolution. It tries page segmentation
+modes 6, 4, then 3, and loads `tel+eng` together since Telugu books usually contain English words.
+For higher accuracy at the cost of a cloud dependency, set `OCR_PROVIDER=google_vision`.
+
 ## Production backend
 
 1. Set `DEBUG=false`.

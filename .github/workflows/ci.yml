@@ -14,7 +14,9 @@ jobs:
       - name: System OCR/TTS tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin tesseract-ocr-tel espeak-ng
+          # fonts-noto-core supplies the Telugu face the OCR tests render their pages with.
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin tesseract-ocr-tel \
+            espeak-ng fonts-noto-core
       - name: Test
         working-directory: backend
         run: |

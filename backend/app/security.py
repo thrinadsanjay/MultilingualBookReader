@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,9 @@ from app.config import get_settings
 from app.db import SessionLocal, User
 
 bearer = HTTPBearer(auto_error=False)
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 PBKDF2_ROUNDS = 390_000
+API_KEY_CLIENT = "api-key-client"
 
 
 def hash_password(password: str) -> str:
@@ -44,6 +46,28 @@ def create_token(email: str, minutes: int | None = None) -> str:
 async def get_session() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
+
+
+async def require_client(
+    api_key: str | None = Depends(api_key_header),
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    """Identifies the caller by shared API key or by signed-in user.
+
+    A single-user server can set API_KEY and skip accounts entirely, which is what the phone does
+    when you give it a server URL and key.
+    """
+    settings = get_settings()
+    if settings.api_key and api_key is not None:
+        if hmac.compare_digest(api_key, settings.api_key):
+            return API_KEY_CLIENT
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="That API key is not valid.")
+    if creds is not None:
+        user = await get_current_user(creds, session)
+        return user.email
+    detail = "Provide the API key in the X-API-Key header." if settings.api_key else "Sign in required."
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
 
 async def get_current_user(

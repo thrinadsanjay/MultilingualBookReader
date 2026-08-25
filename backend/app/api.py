@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.db import User
 from app.providers.factory import ocr_provider, tts_provider, voice_provider
+from app.providers.ocr_tesseract import MissingLanguageError, installed_languages, tesseract_version
 from app.schemas import (
     AudioGenerateResponse,
     AuthRequest,
@@ -15,7 +16,14 @@ from app.schemas import (
     TtsRequest,
     VoiceProfile,
 )
-from app.security import create_token, get_current_user, get_session, hash_password, verify_password
+from app.security import (
+    create_token,
+    get_current_user,
+    get_session,
+    hash_password,
+    require_client,
+    verify_password,
+)
 from app.services.audio_cache import AudioDiskCache, cache_key
 
 router = APIRouter()
@@ -48,21 +56,40 @@ async def login(body: AuthRequest, session: AsyncSession = Depends(get_session))
 async def ocr(
     image: UploadFile = File(...),
     hint_language: str | None = Form(default=None),
-    user: User = Depends(get_current_user),
+    client: str = Depends(require_client),
 ) -> OcrResult:
-    del user
+    del client
     data = await image.read()
     if not data:
         raise HTTPException(status_code=400, detail="The image was empty.")
     try:
         return await ocr_provider().process_image(data, hint_language)
+    except MissingLanguageError as exc:
+        # A deployment problem, not a bad page: say so instead of blaming the image.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail="We could not read this page.") from exc
 
 
+@router.get("/ocr/health")
+async def ocr_health() -> dict[str, object]:
+    """Unauthenticated readiness probe: shows whether Telugu trained data is actually installed."""
+    settings = get_settings()
+    languages = sorted(installed_languages())
+    return {
+        "provider": settings.ocr_provider,
+        "tesseract_version": tesseract_version(),
+        "languages": languages,
+        "telugu_ready": "tel" in languages,
+        "hindi_ready": "hin" in languages,
+        "english_ready": "eng" in languages,
+        "requires_api_key": bool(settings.api_key),
+    }
+
+
 @router.post("/tts")
-async def tts(body: TtsRequest, user: User = Depends(get_current_user)) -> Response:
-    del user
+async def tts(body: TtsRequest, client: str = Depends(require_client)) -> Response:
+    del client
     provider = tts_provider()
     key = cache_key(body.text, body.language, body.voice_id or "standard", body.speed, provider.name)
     cached = audio_cache.get(key)
@@ -80,16 +107,16 @@ async def tts(body: TtsRequest, user: User = Depends(get_current_user)) -> Respo
 
 
 @router.post("/audio/generate", response_model=AudioGenerateResponse)
-async def generate_audio(body: TtsRequest, user: User = Depends(get_current_user)) -> AudioGenerateResponse:
-    response = await tts(body, user)
+async def generate_audio(body: TtsRequest, client: str = Depends(require_client)) -> AudioGenerateResponse:
+    response = await tts(body, client)
     provider = tts_provider()
     key = cache_key(body.text, body.language, body.voice_id or "standard", body.speed, provider.name)
     return AudioGenerateResponse(id=key, cached=response.headers.get("X-Audio-Cache") == "hit", mime_type=response.media_type or "audio/wav")
 
 
 @router.get("/audio/{audio_id}")
-async def get_audio(audio_id: str, user: User = Depends(get_current_user)) -> Response:
-    del user
+async def get_audio(audio_id: str, client: str = Depends(require_client)) -> Response:
+    del client
     path = audio_cache.path_for(audio_id)
     if path is None:
         raise HTTPException(status_code=404, detail="That audio is not cached.")

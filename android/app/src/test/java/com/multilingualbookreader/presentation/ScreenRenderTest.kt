@@ -25,6 +25,8 @@ import com.multilingualbookreader.presentation.library.LibraryScreen
 import com.multilingualbookreader.presentation.reader.ReaderScreen
 import com.multilingualbookreader.presentation.reader.ReaderUiState
 import com.multilingualbookreader.presentation.settings.AboutRoute
+import com.multilingualbookreader.presentation.settings.ServerScreen
+import com.multilingualbookreader.presentation.settings.ServerUiState
 import com.multilingualbookreader.presentation.settings.SettingsScreen
 import com.multilingualbookreader.presentation.settings.UpdatesScreen
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
@@ -201,6 +203,35 @@ class ScreenRenderTest {
                     ),
                 ),
             ),
+        )
+    }
+
+    @Test
+    fun serverSettingsDark() = render("server-dark", dark = true) {
+        ServerScreen(
+            state = ServerUiState(
+                url = "https://books.example.org/",
+                apiKey = "a-secret-key",
+                result = "Connected. Telugu is ready. Installed: eng, hin, osd, tel.",
+                ok = true,
+            ),
+            onUrl = {},
+            onApiKey = {},
+            onSave = {},
+            onTest = {},
+            onBack = {},
+        )
+    }
+
+    @Test
+    fun serverSettingsEmptyLight() = render("server-empty-light", dark = false) {
+        ServerScreen(
+            state = ServerUiState(),
+            onUrl = {},
+            onApiKey = {},
+            onSave = {},
+            onTest = {},
+            onBack = {},
         )
     }
 
