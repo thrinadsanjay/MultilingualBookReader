@@ -2,18 +2,37 @@ package com.multilingualbookreader.camera
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Matrix
+import android.media.ExifInterface
+import com.multilingualbookreader.image.ImageOrientation
+import java.io.ByteArrayInputStream
 import kotlin.math.abs
 import kotlin.math.max
 
 object PageImageProcessor {
+    /** Decodes a camera JPEG upright; BitmapFactory alone ignores the EXIF rotation tag. */
     fun decode(bytes: ByteArray, maxWidth: Int = 1600): Bitmap {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         val sample = sampleSize(max(bounds.outWidth, bounds.outHeight), maxWidth)
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+        return rotate(decoded, exifDegrees(bytes))
     }
+
+    fun exifDegrees(bytes: ByteArray): Float {
+        val orientation = runCatching {
+            ExifInterface(ByteArrayInputStream(bytes))
+                .getAttributeInt(ExifInterface.TAG_ORIENTATION, ImageOrientation.NORMAL)
+        }.getOrDefault(ImageOrientation.NORMAL)
+        return ImageOrientation.degreesFor(orientation)
+    }
+
+    /** A page canvas must start opaque white: PDF pages render onto transparency, and JPEG has no
+     *  alpha channel, so an un-erased bitmap flattens to black text on black. */
+    fun newPageCanvas(width: Int, height: Int): Bitmap =
+        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
 
     fun cropToFrame(source: Bitmap, leftRatio: Float, topRatio: Float, rightRatio: Float, bottomRatio: Float): Bitmap {
         val left = (source.width * leftRatio).toInt().coerceIn(0, source.width - 1)

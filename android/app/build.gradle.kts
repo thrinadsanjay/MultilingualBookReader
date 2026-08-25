@@ -30,8 +30,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 12
-        versionName = "0.2.2"
+        versionCode = 13
+        versionName = "0.2.3"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -151,10 +151,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
 
+    // These ship the OCR models inside the app; the Play Services recogniser they depend on then
+    // reads them locally instead of waiting for a download. The document scanner was never used.
     implementation(libs.mlkit.text)
     implementation(libs.mlkit.text.devanagari)
     implementation(libs.mlkit.language)
-    implementation(libs.mlkit.document.scanner)
     implementation(libs.pdfbox.android)
 
     testImplementation("androidx.test:core-ktx:1.6.1")

@@ -67,8 +67,11 @@ class ScanViewModel @Inject constructor(
                         blurry = blurry,
                     )
                 }
-            }.onFailure {
-                _state.value = _state.value.copy(busy = false, error = "We could not read this page. Try a clearer photo.")
+            }.onFailure { error ->
+                _state.value = _state.value.copy(
+                    busy = false,
+                    error = "We could not read this page. Try a clearer photo. (${error.message?.take(90) ?: "unknown error"})",
+                )
             }
         }
     }

@@ -46,10 +46,14 @@ class MlKitOcrEngine @Inject constructor(
         val primary = when (hintLanguage) {
             SupportedLanguage.HINDI -> devanagari.process(image).await()
             SupportedLanguage.ENGLISH -> latin.process(image).await()
+            // Each recogniser is tried independently: one script's model failing must not discard
+            // a page the other script read perfectly well.
             else -> {
-                val latinResult = latin.process(image).await()
-                val devResult = devanagari.process(image).await()
-                if (devResult.text.length > latinResult.text.length) devResult else latinResult
+                val latinResult = runCatching { latin.process(image).await() }
+                val devResult = runCatching { devanagari.process(image).await() }
+                val best = listOfNotNull(latinResult.getOrNull(), devResult.getOrNull())
+                    .maxByOrNull { it.text.length }
+                best ?: throw latinResult.exceptionOrNull() ?: devResult.exceptionOrNull()!!
             }
         }
         return primary.toDomain(name, processedOffline = true, languageDetector)

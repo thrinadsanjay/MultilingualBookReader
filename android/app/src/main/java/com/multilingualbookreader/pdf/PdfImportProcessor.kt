@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import com.multilingualbookreader.camera.PageImageProcessor
 import com.multilingualbookreader.common.AppLog
 import com.multilingualbookreader.domain.engine.LanguageDetector
 import com.multilingualbookreader.domain.engine.OcrEngine
@@ -107,7 +108,8 @@ class PdfImportProcessor @Inject constructor(
                             if (book.coverPath == null && pageNumber == 1) {
                                 books.upsertBook(book.copy(coverPath = imagePath))
                             }
-                            val ocrResult = runCatching { ocr.recognize(imageBytes) }.getOrNull()
+                            val attempt = runCatching { ocr.recognize(imageBytes) }
+                            val ocrResult = attempt.getOrNull()
                             if (ocrResult == null) {
                                 AppLog.w("pdf_ocr_failed", mapOf("page" to pageNumber))
                                 books.upsertPage(
@@ -119,7 +121,7 @@ class PdfImportProcessor @Inject constructor(
                                         text = "",
                                         language = SupportedLanguage.UNKNOWN,
                                         processingStatus = ProcessingStatus.FAILED,
-                                        errorMessage = "This scanned page could not be read.",
+                                        errorMessage = readableOcrError(attempt.exceptionOrNull()),
                                     ),
                                 )
                                 null
@@ -169,7 +171,9 @@ class PdfImportProcessor @Inject constructor(
         renderer.openPage(index).use { page ->
             val width = (page.width * 2).coerceAtMost(1600)
             val height = (page.height * width) / page.width
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            // Must be white before rendering: PdfRenderer leaves untouched areas transparent and
+            // JPEG has no alpha, so an un-erased page saves as black text on black.
+            val bitmap = PageImageProcessor.newPageCanvas(width, height)
             page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
             val out = ByteArrayOutputStream()
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
@@ -180,5 +184,16 @@ class PdfImportProcessor @Inject constructor(
 
     companion object {
         private const val MIN_SELECTABLE_CHARS = 40
+
+        /** Says what actually went wrong, so a failed page is diagnosable instead of just blank. */
+        fun readableOcrError(error: Throwable?): String {
+            val detail = error?.message?.trim().orEmpty()
+            return when {
+                detail.isEmpty() -> "This page could not be read."
+                detail.contains("offline", ignoreCase = true) ->
+                    "This page needs the server to be read, and the phone is offline."
+                else -> "This page could not be read: ${detail.take(120)}"
+            }
+        }
     }
 }
