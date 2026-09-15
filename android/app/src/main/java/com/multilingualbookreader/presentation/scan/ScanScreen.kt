@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -24,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -69,22 +71,28 @@ fun ScanRoute(
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::onGalleryPicked)
+    }
+    val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let(viewModel::onGalleryPicked)
+    }
+    fun pickGallery() {
+        if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
+            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        } else {
+            getContent.launch("image/*")
+        }
+    }
     LaunchedEffect(Unit) {
         if (!granted) permission.launch(Manifest.permission.CAMERA)
     }
-    if (!granted) {
-        Scaffold { padding ->
-            Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Camera access is needed to scan a page.")
-                LargeButton("Allow camera", onClick = { permission.launch(Manifest.permission.CAMERA) })
-                LargeButton("Back", onBack, tonal = true)
-            }
-        }
-        return
-    }
     ScanScreen(
         state = state,
+        cameraGranted = granted,
         onCapture = viewModel::onCaptured,
+        onPickGallery = ::pickGallery,
+        onRequestCamera = { permission.launch(Manifest.permission.CAMERA) },
         onTextChange = viewModel::updateText,
         onSave = viewModel::savePage,
         onRetake = viewModel::retake,
@@ -103,6 +111,9 @@ fun ScanScreen(
     onRetake: () -> Unit,
     onRead: () -> Unit,
     onBack: () -> Unit,
+    cameraGranted: Boolean = true,
+    onPickGallery: () -> Unit = {},
+    onRequestCamera: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -115,11 +126,15 @@ fun ScanScreen(
         },
     ) { padding ->
         if (state.preview == null) {
-            CameraPane(
+            CapturePane(
                 modifier = Modifier.padding(padding),
                 pageCount = state.pageCount,
                 busy = state.busy,
+                error = state.error,
+                cameraGranted = cameraGranted,
                 onCapture = onCapture,
+                onPickGallery = onPickGallery,
+                onRequestCamera = onRequestCamera,
                 onRead = onRead.takeIf { state.pageCount > 0 },
             )
         } else {
@@ -139,11 +154,72 @@ fun ScanScreen(
 }
 
 @Composable
+private fun CapturePane(
+    modifier: Modifier,
+    pageCount: Int,
+    busy: Boolean,
+    error: String?,
+    cameraGranted: Boolean,
+    onCapture: (ByteArray) -> Unit,
+    onPickGallery: () -> Unit,
+    onRequestCamera: () -> Unit,
+    onRead: (() -> Unit)?,
+) {
+    if (cameraGranted) {
+        CameraPane(
+            modifier = modifier,
+            pageCount = pageCount,
+            busy = busy,
+            error = error,
+            onCapture = onCapture,
+            onPickGallery = onPickGallery,
+            onRead = onRead,
+        )
+    } else {
+        GalleryFallbackPane(
+            modifier = modifier,
+            pageCount = pageCount,
+            busy = busy,
+            error = error,
+            onPickGallery = onPickGallery,
+            onRequestCamera = onRequestCamera,
+            onRead = onRead,
+        )
+    }
+}
+
+@Composable
+private fun GalleryFallbackPane(
+    modifier: Modifier,
+    pageCount: Int,
+    busy: Boolean,
+    error: String?,
+    onPickGallery: () -> Unit,
+    onRequestCamera: () -> Unit,
+    onRead: (() -> Unit)?,
+) {
+    Column(
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Scan a page with the camera, or pick a photo from your gallery.")
+        if (pageCount > 0) Text("Pages saved: $pageCount")
+        error?.let { Text(it) }
+        if (busy) CircularProgressIndicator()
+        LargeButton("Allow camera", onRequestCamera, enabled = !busy)
+        LargeButton("Choose from gallery", onPickGallery, tonal = true, enabled = !busy, icon = Icons.Outlined.PhotoLibrary)
+        onRead?.let { LargeButton("Read book", it, tonal = true) }
+    }
+}
+
+@Composable
 private fun CameraPane(
     modifier: Modifier,
     pageCount: Int,
     busy: Boolean,
+    error: String?,
     onCapture: (ByteArray) -> Unit,
+    onPickGallery: () -> Unit,
     onRead: (() -> Unit)?,
 ) {
     val context = LocalContext.current
@@ -186,6 +262,7 @@ private fun CameraPane(
         ) {
             Text("Align the page inside the frame", color = Color.White)
             if (pageCount > 0) Text("Pages saved: $pageCount", color = Color.White)
+            error?.let { Text(it, color = Color.White) }
             if (busy) CircularProgressIndicator()
             LargeButton("Capture page", {
                 val file = File(context.cacheDir, "capture.jpg")
@@ -200,7 +277,8 @@ private fun CameraPane(
                         override fun onError(exception: ImageCaptureException) = Unit
                     },
                 )
-            })
+            }, enabled = !busy)
+            LargeButton("Choose from gallery", onPickGallery, tonal = true, enabled = !busy, icon = Icons.Outlined.PhotoLibrary)
             onRead?.let { LargeButton("Read book", it, tonal = true) }
         }
     }

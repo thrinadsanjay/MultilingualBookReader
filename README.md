@@ -6,7 +6,7 @@ The app never embeds cloud API keys. Cloud OCR, neural TTS, and voice cloning go
 
 ## What you can do
 
-- Scan a physical page with the camera, edit the text, and add it to a book
+- Scan a physical page with the camera or pick a photo from the gallery, edit the text, and add it to a book
 - Import a PDF (text pages are extracted; scanned pages are OCR’d)
 - Listen with highlighted text, speed control, and lock-screen playback
 - Continue later from the last sentence

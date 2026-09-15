@@ -40,6 +40,25 @@ class PageCanvasTest {
     }
 
     @Test
+    fun galleryPhotosKeepTheFullPageInsteadOfTheCameraFrame() {
+        val source = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+        Canvas(source).drawRect(0f, 0f, 6f, 100f, Paint().apply { color = Color.RED })
+        val jpeg = ByteArrayOutputStream().apply { source.compress(Bitmap.CompressFormat.JPEG, 100, this) }.toByteArray()
+
+        val camera = PageImageProcessor.prepareForOcr(jpeg, cropToCameraFrame = true)
+        val gallery = PageImageProcessor.prepareForOcr(jpeg, cropToCameraFrame = false)
+
+        assertThat(camera.bitmap.width).isLessThan(gallery.bitmap.width)
+        assertThat(camera.bitmap.height).isLessThan(gallery.bitmap.height)
+        assertThat(gallery.bitmap.width).isEqualTo(100)
+        assertThat(gallery.bitmap.height).isEqualTo(100)
+        // The red strip is in the camera overlay margin, so a live capture must drop it and a
+        // gallery photo must keep the whole page.
+        assertThat(Color.red(gallery.bitmap.getPixel(2, 50))).isGreaterThan(150)
+        assertThat(Color.red(camera.bitmap.getPixel(2, 50))).isLessThan(80)
+    }
+
+    @Test
     fun anUnerasedCanvasLosesTheTextToABlackBackground() {
         val transparent = Bitmap.createBitmap(40, 40, Bitmap.Config.ARGB_8888)
         Canvas(transparent).drawRect(10f, 10f, 30f, 30f, Paint().apply { color = Color.BLACK })

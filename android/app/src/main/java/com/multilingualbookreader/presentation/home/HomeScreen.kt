@@ -123,7 +123,7 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HeroCard(
                     title = stringResource(R.string.scan_book),
-                    subtitle = "Use camera to scan book pages",
+                    subtitle = "Camera or a photo from gallery",
                     icon = Icons.Outlined.DocumentScanner,
                     container = brand.scanSurface,
                     content = brand.onScanSurface,

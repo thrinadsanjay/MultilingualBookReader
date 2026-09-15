@@ -7,6 +7,7 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import com.multilingualbookreader.image.ImageOrientation
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -33,6 +34,15 @@ object PageImageProcessor {
      *  alpha channel, so an un-erased bitmap flattens to black text on black. */
     fun newPageCanvas(width: Int, height: Int): Bitmap =
         Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+
+    /** Camera captures are framed by the on-screen overlay; gallery photos are already the page. */
+    fun prepareForOcr(bytes: ByteArray, cropToCameraFrame: Boolean): PreparedPage {
+        val decoded = decode(bytes)
+        val framed = if (cropToCameraFrame) cropToFrame(decoded, 0.08f, 0.12f, 0.92f, 0.88f) else decoded
+        val enhanced = enhanceContrast(framed)
+        val jpeg = ByteArrayOutputStream().apply { enhanced.compress(Bitmap.CompressFormat.JPEG, 90, this) }.toByteArray()
+        return PreparedPage(bitmap = enhanced, jpeg = jpeg, blurry = blurScore(enhanced) < 6.0)
+    }
 
     fun cropToFrame(source: Bitmap, leftRatio: Float, topRatio: Float, rightRatio: Float, bottomRatio: Float): Bitmap {
         val left = (source.width * leftRatio).toInt().coerceIn(0, source.width - 1)
@@ -85,6 +95,12 @@ object PageImageProcessor {
         val matrix = Matrix().apply { postRotate(degrees) }
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
+
+    data class PreparedPage(
+        val bitmap: Bitmap,
+        val jpeg: ByteArray,
+        val blurry: Boolean,
+    )
 
     private fun sampleSize(longest: Int, max: Int): Int {
         var sample = 1

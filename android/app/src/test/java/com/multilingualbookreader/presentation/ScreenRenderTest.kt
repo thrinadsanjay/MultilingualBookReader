@@ -22,6 +22,8 @@ import com.multilingualbookreader.presentation.components.ReaderBottomBar
 import com.multilingualbookreader.presentation.home.HomeScreen
 import com.multilingualbookreader.presentation.home.HomeUiState
 import com.multilingualbookreader.presentation.library.LibraryScreen
+import com.multilingualbookreader.presentation.scan.ScanScreen
+import com.multilingualbookreader.presentation.scan.ScanUiState
 import com.multilingualbookreader.presentation.reader.ReaderScreen
 import com.multilingualbookreader.presentation.reader.ReaderUiState
 import com.multilingualbookreader.presentation.settings.AboutRoute
@@ -148,6 +150,38 @@ class ScreenRenderTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun scanGalleryChooserLight() = render("scan-gallery-light", dark = false) {
+        ScanScreen(
+            state = ScanUiState(),
+            cameraGranted = false,
+            onCapture = {},
+            onPickGallery = {},
+            onRequestCamera = {},
+            onTextChange = {},
+            onSave = {},
+            onRetake = {},
+            onRead = {},
+            onBack = {},
+        )
+    }
+
+    @Test
+    fun scanGalleryChooserDark() = render("scan-gallery-dark", dark = true) {
+        ScanScreen(
+            state = ScanUiState(pageCount = 2),
+            cameraGranted = false,
+            onCapture = {},
+            onPickGallery = {},
+            onRequestCamera = {},
+            onTextChange = {},
+            onSave = {},
+            onRetake = {},
+            onRead = {},
+            onBack = {},
+        )
     }
 
     @Test

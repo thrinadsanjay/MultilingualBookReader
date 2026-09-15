@@ -12,11 +12,11 @@ Implementations:
 2. `BackendOcrEngine` — Tesseract or Google Vision via the API. Required for Telugu.
 3. `CompositeOcrEngine` — respects Settings (`ON_DEVICE` / `CLOUD` / `AUTO`). AUTO uses ML Kit unless the hint is Telugu, confidence is low, or the device is online and local text is empty.
 
-## Camera path
+## Camera and gallery path
 
-1. CameraX preview with a page frame overlay.
+1. CameraX preview with a page frame overlay, plus **Choose from gallery** (Photo Picker; no extra storage permission). Gallery works even if camera permission is denied.
 2. Manual capture (auto-capture is gated on a blur score; blurry shots can still be used).
-3. Crop to the overlay, light contrast enhancement.
+3. Camera captures are cropped to the overlay; gallery photos are used as-is. Then light contrast enhancement.
 4. OCR → editor → **Use Page** / **Retake**.
 5. Repeat; pages append to one book. **Read book** opens the reader.
 

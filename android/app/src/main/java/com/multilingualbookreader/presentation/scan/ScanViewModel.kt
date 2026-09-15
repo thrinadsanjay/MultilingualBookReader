@@ -2,6 +2,7 @@ package com.multilingualbookreader.presentation.scan
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -48,32 +49,48 @@ class ScanViewModel @Inject constructor(
     private val _state = MutableStateFlow(ScanUiState(bookId = initialBookId))
     val state: StateFlow<ScanUiState> = _state
 
-    fun onCaptured(bytes: ByteArray) {
+    fun onCaptured(bytes: ByteArray) = recognizePage(bytes, cropToCameraFrame = true)
+
+    fun onGalleryPicked(uri: Uri) {
         viewModelScope.launch {
             _state.value = _state.value.copy(busy = true, error = null)
             runCatching {
-                withContext(Dispatchers.Default) {
-                    val decoded = PageImageProcessor.decode(bytes)
-                    val cropped = PageImageProcessor.cropToFrame(decoded, 0.08f, 0.12f, 0.92f, 0.88f)
-                    val enhanced = PageImageProcessor.enhanceContrast(cropped)
-                    val blurry = PageImageProcessor.blurScore(enhanced) < 6.0
-                    val jpeg = ByteArrayOutputStream().apply { enhanced.compress(Bitmap.CompressFormat.JPEG, 90, this) }.toByteArray()
-                    val result: OcrResult = ocr.recognize(jpeg)
-                    _state.value = _state.value.copy(
-                        preview = enhanced,
-                        ocrText = result.text,
-                        language = result.language,
-                        busy = false,
-                        blurry = blurry,
-                    )
+                val bytes = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Could not open that photo.")
                 }
-            }.onFailure { error ->
-                _state.value = _state.value.copy(
-                    busy = false,
-                    error = "We could not read this page. Try a clearer photo. (${error.message?.take(90) ?: "unknown error"})",
-                )
-            }
+                recognizeLoadedPage(bytes, cropToCameraFrame = false)
+            }.onFailure(::failRead)
         }
+    }
+
+    private fun recognizePage(bytes: ByteArray, cropToCameraFrame: Boolean) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(busy = true, error = null)
+            runCatching { recognizeLoadedPage(bytes, cropToCameraFrame) }.onFailure(::failRead)
+        }
+    }
+
+    private suspend fun recognizeLoadedPage(bytes: ByteArray, cropToCameraFrame: Boolean) {
+        withContext(Dispatchers.Default) {
+            val prepared = PageImageProcessor.prepareForOcr(bytes, cropToCameraFrame)
+            val result: OcrResult = ocr.recognize(prepared.jpeg)
+            _state.value = _state.value.copy(
+                preview = prepared.bitmap,
+                ocrText = result.text,
+                language = result.language,
+                busy = false,
+                blurry = prepared.blurry,
+                error = null,
+            )
+        }
+    }
+
+    private fun failRead(error: Throwable) {
+        _state.value = _state.value.copy(
+            busy = false,
+            error = "We could not read this page. Try a clearer photo. (${error.message?.take(90) ?: "unknown error"})",
+        )
     }
 
     fun updateText(text: String) {

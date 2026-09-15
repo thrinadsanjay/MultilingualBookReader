@@ -50,7 +50,7 @@ Coverage:
 2. Import a Hindi digital PDF → Play.
 3. Import a Telugu digital PDF → Play.
 4. Import a scanned PDF and confirm page progress does not freeze the UI.
-5. Scan a physical page, edit OCR, save, Play.
+5. Scan a physical page or pick a photo from the gallery, edit OCR, save, Play.
 6. Highlighting follows the spoken sentence.
 7. Pause / speed / lock screen.
 8. Kill the app, reopen, Continue.
