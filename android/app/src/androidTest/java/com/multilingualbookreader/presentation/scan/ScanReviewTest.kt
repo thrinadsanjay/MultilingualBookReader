@@ -1,9 +1,10 @@
 package com.multilingualbookreader.presentation.scan
 
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import com.google.common.truth.Truth.assertThat
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
 import org.junit.Rule
 import org.junit.Test
@@ -54,7 +55,7 @@ class ScanReviewTest {
         composeRule.onNodeWithText("Scan a page with the camera, or pick a photo from your gallery.").assertIsDisplayed()
         composeRule.onNodeWithText("Allow camera").assertIsDisplayed()
         composeRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
-        composeRule.onNodeWithText("Align the page inside the frame").assertDoesNotExist()
-        composeRule.onNodeWithText("Capture page").assertDoesNotExist()
+        assertThat(composeRule.onAllNodesWithText("Align the page inside the frame").fetchSemanticsNodes()).isEmpty()
+        assertThat(composeRule.onAllNodesWithText("Capture page").fetchSemanticsNodes()).isEmpty()
     }
 }
