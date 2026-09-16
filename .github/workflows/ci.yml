@@ -32,8 +32,12 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@v3
         with:
-          # The default install list still includes the retired `tools` package.
+          # `tools` was removed from the SDK repository and fails the default package list.
           packages: platform-tools
+      - name: Point Gradle at the SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
       - name: Core JVM tests
         working-directory: android
         run: ./gradlew :core:test --no-daemon

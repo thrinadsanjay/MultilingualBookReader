@@ -28,6 +28,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class ScanCaptureMode { SINGLE, MULTIPLE, BOOK }
+
+enum class ScanFlash { OFF, AUTO, ON }
+
 data class ScanUiState(
     val bookId: String? = null,
     val pageCount: Int = 0,
@@ -37,6 +41,12 @@ data class ScanUiState(
     val busy: Boolean = false,
     val error: String? = null,
     val blurry: Boolean = false,
+    val mode: ScanCaptureMode = ScanCaptureMode.SINGLE,
+    val flash: ScanFlash = ScanFlash.AUTO,
+    val autoCrop: Boolean = true,
+    val highQuality: Boolean = false,
+    val showTips: Boolean = false,
+    val openReaderId: String? = null,
 )
 
 @HiltViewModel
@@ -51,7 +61,39 @@ class ScanViewModel @Inject constructor(
     private val _state = MutableStateFlow(ScanUiState(bookId = initialBookId))
     val state: StateFlow<ScanUiState> = _state
 
-    fun onCaptured(bytes: ByteArray) = recognizePage(bytes, cropToCameraFrame = true)
+    fun onCaptured(bytes: ByteArray) {
+        val crop = _state.value.autoCrop && _state.value.mode != ScanCaptureMode.BOOK
+        recognizePage(bytes, cropToCameraFrame = crop)
+    }
+
+    fun setMode(mode: ScanCaptureMode) {
+        _state.value = _state.value.copy(mode = mode)
+    }
+
+    fun cycleFlash() {
+        val next = when (_state.value.flash) {
+            ScanFlash.OFF -> ScanFlash.AUTO
+            ScanFlash.AUTO -> ScanFlash.ON
+            ScanFlash.ON -> ScanFlash.OFF
+        }
+        _state.value = _state.value.copy(flash = next)
+    }
+
+    fun toggleAutoCrop() {
+        _state.value = _state.value.copy(autoCrop = !_state.value.autoCrop)
+    }
+
+    fun toggleHighQuality() {
+        _state.value = _state.value.copy(highQuality = !_state.value.highQuality)
+    }
+
+    fun toggleTips() {
+        _state.value = _state.value.copy(showTips = !_state.value.showTips)
+    }
+
+    fun consumeOpenReader() {
+        _state.value = _state.value.copy(openReaderId = null)
+    }
 
     fun onGalleryPicked(uri: Uri) {
         viewModelScope.launch {
@@ -116,7 +158,16 @@ class ScanViewModel @Inject constructor(
                     persistPage(current, bitmap)
                 }
             }.onSuccess { (bookId, pageNumber) ->
-                _state.value = ScanUiState(bookId = bookId, pageCount = pageNumber)
+                _state.value = current.copy(
+                    bookId = bookId,
+                    pageCount = pageNumber,
+                    preview = null,
+                    ocrText = "",
+                    busy = false,
+                    error = null,
+                    blurry = false,
+                    openReaderId = bookId.takeIf { current.mode == ScanCaptureMode.SINGLE },
+                )
             }.onFailure { error ->
                 _state.value = current.copy(
                     bookId = _state.value.bookId ?: current.bookId,

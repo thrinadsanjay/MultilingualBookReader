@@ -2,10 +2,10 @@ package com.multilingualbookreader.presentation.scan
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import com.google.common.truth.Truth.assertThat
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +29,7 @@ class ScanScreenTest {
                     cameraGranted = false,
                     onCapture = {},
                     onPickGallery = {},
+                    onImportPdf = {},
                     onRequestCamera = {},
                     onTextChange = {},
                     onSave = {},
@@ -38,8 +39,17 @@ class ScanScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+        composeRule.onNodeWithText("Scan Book").assertIsDisplayed()
+        composeRule.onNodeWithText("Position the page inside the frame").assertIsDisplayed()
+        composeRule.onNodeWithText("Keep the page flat, well lit, and avoid shadows.").assertIsDisplayed()
+        composeRule.onNodeWithText("Camera access is needed to scan a page.").assertIsDisplayed()
         composeRule.onNodeWithText("Allow camera").assertIsDisplayed()
-        assertThat(composeRule.onAllNodesWithText("Capture page").fetchSemanticsNodes()).isEmpty()
+        composeRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+        composeRule.onNodeWithText("Import PDF instead").assertIsDisplayed()
+        composeRule.onNodeWithText("Single Page").assertIsDisplayed()
+        composeRule.onNodeWithText("Multiple Pages").assertIsDisplayed()
+        composeRule.onNodeWithText("Book Mode").assertIsDisplayed()
+        composeRule.onNodeWithText("Align the page inside the frame").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Capture page").assertIsDisplayed().assertIsNotEnabled()
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -56,9 +57,10 @@ fun BookReaderNavHost() {
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val showBottomBar = appTabForRoute(route) != null
+    val onScan = route?.startsWith("scan") == true
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = if (onScan) Color(0xFF0E0E11) else MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomBar) {
                 ReaderBottomBar(currentRoute = route) { tab ->
@@ -125,6 +127,7 @@ fun BookReaderNavHost() {
             ) {
                 ScanRoute(
                     onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                    onImportPdf = { nav.navigate(Routes.PdfImport) },
                     onBack = { nav.popBackStack() },
                 )
             }
