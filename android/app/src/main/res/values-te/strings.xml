@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Svara</string>
+    <string name="app_tagline">చదవండి · వినండి · మీ గొంతు</string>
+    <string name="home_title">Svara</string>
+    <string name="scan_book">పుస్తకం స్కాన్ చేయండి</string>
+    <string name="import_pdf">PDF దిగుమతి</string>
+    <string name="my_library">నా లైబ్రరీ</string>
+    <string name="my_voice">నా స్వరం</string>
+    <string name="settings">సెట్టింగ్‌లు</string>
+    <string name="continue_reading">చదవడం కొనసాగించండి</string>
+    <string name="continue_action">కొనసాగించు</string>
+    <string name="manage_voice">స్వరాన్ని నిర్వహించండి</string>
+    <string name="play">ప్లే</string>
+    <string name="pause">పాజ్</string>
+    <string name="next">తర్వాత</string>
+    <string name="previous">మునుపటి</string>
+    <string name="offline">ఆఫ్‌లైన్</string>
+    <string name="online">ఆన్‌లైన్</string>
+    <string name="align_page">పేజీని ఫ్రేమ్‌లో ఉంచండి</string>
+    <string name="use_page">పేజీని ఉపయోగించండి</string>
+    <string name="retake">మళ్లీ తీయండి</string>
+    <string name="read_aloud">బిగ్గరగా చదవండి</string>
+    <string name="privacy">గోప్యత</string>
+    <string name="voice_consent">నేను నా స్వంత స్వరాన్ని, లేదా నాకు అనుమతి ఉన్న స్వరాన్ని మాత్రమే రికార్డ్ చేస్తున్నాను.</string>
+</resources>

@@ -1,0 +1,43 @@
+name: publish-debug-apk
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/publish-debug-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon
+      - name: Publish rolling test release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION_CODE=$(grep -oP 'versionCode = \K[0-9]+' android/app/build.gradle.kts | head -1)
+          VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' android/app/build.gradle.kts | head -1)
+          APK_NAME="Svara-${VERSION_CODE}-debug.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK_NAME"
+          NOTES=$(printf 'versionCode=%s\n\nInstall from Settings → Check for updates.\nAndroid will ask you to allow installs from Svara once, then confirm the system installer.\nThis rolling prerelease is replaced on every publish.' "$VERSION_CODE")
+          if gh release view testing-latest >/dev/null 2>&1; then
+            gh release delete testing-latest --yes
+            git push origin :refs/tags/testing-latest || true
+          fi
+          gh release create testing-latest "$APK_NAME" \
+            --prerelease \
+            --title "Testing build ${VERSION_NAME} (${VERSION_CODE})" \
+            --notes "$NOTES"
