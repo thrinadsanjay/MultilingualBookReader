@@ -126,7 +126,12 @@ fun BookReaderNavHost() {
                 arguments = listOf(navArgument("bookId") { type = NavType.StringType; defaultValue = "" }),
             ) {
                 ScanRoute(
-                    onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
+                    onOpenReader = { id ->
+                        val readerRoute = "reader/$id"
+                        if (!nav.popBackStack(readerRoute, inclusive = false)) {
+                            nav.navigate(readerRoute) { popUpTo(Routes.Home) }
+                        }
+                    },
                     onImportPdf = { nav.navigate(Routes.PdfImport) },
                     onOpenServer = { nav.navigate(Routes.Server) },
                     onBack = { nav.popBackStack() },
@@ -147,6 +152,7 @@ fun BookReaderNavHost() {
                     bookId = bookId,
                     onBack = { nav.popBackStack() },
                     onSearch = { nav.navigate("search/$bookId") },
+                    onAddPages = { nav.navigate("scan?bookId=$bookId") },
                 )
             }
             composable(Routes.Voice) {

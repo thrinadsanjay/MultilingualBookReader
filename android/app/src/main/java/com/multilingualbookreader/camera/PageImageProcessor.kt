@@ -63,6 +63,16 @@ object PageImageProcessor {
         return if (enhance) enhanceContrast(cropped) else cropped
     }
 
+    /** Loads a saved scan or PDF page without decoding a 4000px photo at full size. */
+    fun decodePageFile(path: String, maxSide: Int = 1800): Bitmap? {
+        if (path.isBlank()) return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val sample = sampleSize(max(bounds.outWidth, bounds.outHeight), maxSide)
+        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
     fun toJpeg(bitmap: Bitmap, quality: Int = 90): ByteArray {
         if (bitmap.isRecycled) return ByteArray(0)
         val source = if (bitmap.config == Bitmap.Config.HARDWARE) {

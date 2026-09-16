@@ -93,6 +93,19 @@ class ScanViewModel @Inject constructor(
     private val _state = MutableStateFlow(ScanUiState(bookId = initialBookId))
     val state: StateFlow<ScanUiState> = _state
 
+    init {
+        val existingId = initialBookId
+        if (existingId != null) {
+            viewModelScope.launch {
+                val count = books.getPages(existingId).size
+                _state.value = _state.value.copy(
+                    pageCount = count,
+                    mode = ScanCaptureMode.MULTIPLE,
+                )
+            }
+        }
+    }
+
     fun onCaptured(bytes: ByteArray) {
         val crop = _state.value.autoCrop && _state.value.mode != ScanCaptureMode.BOOK
         viewModelScope.launch { importBytes(listOf(bytes), cropToCameraFrame = crop) }

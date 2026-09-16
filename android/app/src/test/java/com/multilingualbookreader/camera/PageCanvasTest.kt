@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import com.google.common.truth.Truth.assertThat
 import java.io.ByteArrayOutputStream
+import java.io.File
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -91,6 +92,21 @@ class PageCanvasTest {
         // Background and glyphs both end up black, which is exactly why imported pages read as empty.
         assertThat(decoded.getPixel(2, 2)).isEqualTo(Color.BLACK)
         assertThat(decoded.getPixel(20, 20)).isEqualTo(Color.BLACK)
+    }
+
+    @Test
+    fun decodePageFileReadsASavedScan() {
+        val source = PageImageProcessor.newPageCanvas(80, 120)
+        val file = File.createTempFile("page", ".jpg")
+        file.writeBytes(PageImageProcessor.toJpeg(source))
+        val loaded = PageImageProcessor.decodePageFile(file.absolutePath)!!
+        assertThat(loaded.width).isGreaterThan(0)
+        assertThat(loaded.height).isGreaterThan(0)
+    }
+
+    @Test
+    fun decodePageFileIgnoresAMissingFile() {
+        assertThat(PageImageProcessor.decodePageFile("/no/such/page.jpg")).isNull()
     }
 
     private fun pageWithHorizontalLines(width: Int, height: Int): Bitmap {

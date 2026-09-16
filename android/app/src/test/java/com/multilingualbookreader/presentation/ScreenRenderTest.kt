@@ -2,6 +2,8 @@ package com.multilingualbookreader.presentation
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -10,6 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
+import com.multilingualbookreader.camera.PageImageProcessor
 import com.multilingualbookreader.domain.model.Book
 import com.multilingualbookreader.domain.model.BookPage
 import com.multilingualbookreader.domain.model.BookSource
@@ -355,6 +360,57 @@ class ScreenRenderTest {
         )
     }
 
+    @Test
+    fun readerShowsOriginalScanPage() = render("reader-book-page-dark", dark = true) {
+        ReaderScreenPreview(
+            ReaderUiState(
+                book = sampleBook.book.copy(title = "Scanned book", sourceType = BookSource.CAMERA_SCAN),
+                pages = listOf(sampleScanPage(1, samplePageJpeg("యథాతథము"))),
+            ),
+        )
+    }
+
+    @Test
+    fun readerTurnsPagesWithArrows() = render("reader-book-arrows-dark", dark = true) {
+        ReaderScreenPreview(
+            ReaderUiState(
+                book = sampleBook.book.copy(title = "Scanned book", sourceType = BookSource.CAMERA_SCAN),
+                pageIndex = 0,
+                pages = listOf(
+                    sampleScanPage(1, samplePageJpeg("Page one")),
+                    sampleScanPage(2, samplePageJpeg("Page two")),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun readerOverflowMenuHoldsNotesAndSettings() {
+        composeRule.setContent {
+            BookReaderTheme(darkTheme = true, highContrast = false, fontScale = 1.0f) {
+                ReaderScreenPreview(
+                    ReaderUiState(
+                        book = sampleBook.book.copy(title = "Scanned book"),
+                        pages = listOf(
+                            BookPage(
+                                id = "page-1",
+                                bookId = sampleBook.book.id,
+                                pageNumber = 1,
+                                imagePath = null,
+                                text = "నమస్కారం",
+                                language = SupportedLanguage.TELUGU,
+                                processingStatus = ProcessingStatus.COMPLETED,
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.waitForIdle()
+        capture("reader-overflow-menu-dark")
+    }
+
     @Composable
     private fun ReaderScreenPreview(state: ReaderUiState) {
         ReaderScreen(
@@ -364,8 +420,8 @@ class ScreenRenderTest {
             onPlay = {},
             onPause = {},
             onResume = {},
-            onPrev = {},
-            onNext = {},
+            onPrevSentence = {},
+            onNextSentence = {},
             onSkipParagraph = {},
             onRepeat = {},
             onRestart = {},
@@ -498,5 +554,35 @@ class ScreenRenderTest {
         view.draw(Canvas(bitmap))
         val dir = File("build/screenshots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    private fun sampleScanPage(number: Int, imagePath: String) = BookPage(
+        id = "page-$number",
+        bookId = sampleBook.book.id,
+        pageNumber = number,
+        imagePath = imagePath,
+        text = "Page $number",
+        language = SupportedLanguage.TELUGU,
+        processingStatus = ProcessingStatus.COMPLETED,
+    )
+
+    private fun samplePageJpeg(heading: String): String {
+        val bitmap = PageImageProcessor.newPageCanvas(720, 1024)
+        val paint = Paint().apply {
+            color = Color.rgb(42, 32, 22)
+            textSize = 48f
+            isAntiAlias = true
+        }
+        Canvas(bitmap).apply {
+            drawText(heading, 64f, 140f, paint)
+            drawText("A scanned book page.", 64f, 210f, paint)
+            drawRect(64f, 280f, 656f, 860f, Paint().apply {
+                color = Color.rgb(232, 214, 190)
+                style = Paint.Style.FILL
+            })
+        }
+        val file = File.createTempFile("scan-page-", ".jpg")
+        file.writeBytes(PageImageProcessor.toJpeg(bitmap, 90))
+        return file.absolutePath
     }
 }
