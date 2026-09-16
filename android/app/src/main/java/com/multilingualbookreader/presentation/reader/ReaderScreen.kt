@@ -216,7 +216,7 @@ fun ReaderScreen(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(Color(0xFF121214)),
+                    .background(brand.surfaceSecondary),
             ) {
                 if (state.pages.isEmpty()) {
                     EmptyState(

@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import com.multilingualbookreader.camera.PageImageProcessor
 import com.multilingualbookreader.domain.model.Book
 import com.multilingualbookreader.domain.model.BookPage
@@ -380,6 +382,33 @@ class ScreenRenderTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun readerOverflowMenuHoldsNotesAndSettings() {
+        composeRule.setContent {
+            BookReaderTheme(darkTheme = true, highContrast = false, fontScale = 1.0f) {
+                ReaderScreenPreview(
+                    ReaderUiState(
+                        book = sampleBook.book.copy(title = "Scanned book"),
+                        pages = listOf(
+                            BookPage(
+                                id = "page-1",
+                                bookId = sampleBook.book.id,
+                                pageNumber = 1,
+                                imagePath = null,
+                                text = "నమస్కారం",
+                                language = SupportedLanguage.TELUGU,
+                                processingStatus = ProcessingStatus.COMPLETED,
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.waitForIdle()
+        capture("reader-overflow-menu-dark")
     }
 
     @Composable
