@@ -16,6 +16,11 @@ data class BookEntity(
     val totalPages: Int,
     val createdAt: Long,
     val updatedAt: Long,
+    val tags: String = "",
+    val priority: String = "NORMAL",
+    val color: String = "",
+    val genre: String = "",
+    val favorite: Boolean = false,
 )
 
 @Entity(

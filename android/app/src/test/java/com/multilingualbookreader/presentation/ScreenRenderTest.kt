@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performClick
 import com.multilingualbookreader.camera.PageImageProcessor
 import com.multilingualbookreader.domain.model.Book
 import com.multilingualbookreader.domain.model.BookPage
+import com.multilingualbookreader.domain.model.BookPriority
 import com.multilingualbookreader.domain.model.BookSource
 import com.multilingualbookreader.domain.model.LibraryBook
 import com.multilingualbookreader.domain.model.OcrRoute
@@ -94,8 +95,11 @@ class ScreenRenderTest {
             sourceType = BookSource.MIXED,
             language = SupportedLanguage.ENGLISH,
             totalPages = 120,
-            createdAt = 0L,
-            updatedAt = 0L,
+            createdAt = 1_758_000_000_000L,
+            updatedAt = 1_758_000_000_000L,
+            tags = listOf("sample"),
+            color = "#E8A87C",
+            genre = "Fiction",
         ),
         completedPages = 24,
         progressPercent = 20,
@@ -252,7 +256,29 @@ class ScreenRenderTest {
 
     @Test
     fun libraryDark() = render("library-dark", dark = true) {
-        LibraryScreen(books = listOf(sampleBook), onOpen = {}, onBack = {}, onDelete = {})
+        LibraryScreen(
+            books = listOf(
+                sampleBook,
+                sampleBook.copy(
+                    book = sampleBook.book.copy(
+                        id = "book-2",
+                        title = "యథాతథము",
+                        sourceType = BookSource.CAMERA_SCAN,
+                        tags = listOf("Telugu", "Temple"),
+                        priority = BookPriority.HIGH,
+                        color = "#6FBFA8",
+                        genre = "Religion",
+                        favorite = true,
+                        createdAt = 1_758_000_000_000L,
+                    ),
+                    completedPages = 1,
+                    progressPercent = 40,
+                ),
+            ),
+            onOpen = {},
+            onBack = {},
+            onDelete = {},
+        )
     }
 
     @Test

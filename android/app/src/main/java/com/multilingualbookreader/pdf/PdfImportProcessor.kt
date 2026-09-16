@@ -10,6 +10,7 @@ import com.multilingualbookreader.domain.engine.LanguageDetector
 import com.multilingualbookreader.domain.engine.OcrEngine
 import com.multilingualbookreader.domain.engine.TextProcessor
 import com.multilingualbookreader.domain.model.Book
+import com.multilingualbookreader.domain.model.BookLooks
 import com.multilingualbookreader.domain.model.BookPage
 import com.multilingualbookreader.domain.model.BookSource
 import com.multilingualbookreader.domain.model.ProcessingStatus
@@ -66,6 +67,7 @@ class PdfImportProcessor @Inject constructor(
             totalPages = pageCount,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
+            color = BookLooks.colorFor(bookId),
         )
         books.upsertBook(book)
         var languageVotes = mutableMapOf<SupportedLanguage, Int>()

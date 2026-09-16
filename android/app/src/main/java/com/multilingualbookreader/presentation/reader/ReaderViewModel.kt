@@ -188,6 +188,15 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    fun rename(title: String) {
+        val book = _ui.value.book ?: return
+        val name = title.trim()
+        if (name.isEmpty()) return
+        viewModelScope.launch {
+            books.upsertBook(book.copy(title = name, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
     private fun persist() {
         val current = _ui.value
         val book = current.book ?: return
