@@ -48,6 +48,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -145,6 +146,7 @@ fun ScanScreen(
                 language = state.language.displayName,
                 blurry = state.blurry,
                 error = state.error,
+                busy = state.busy,
                 onTextChange = onTextChange,
                 onSave = onSave,
                 onRetake = onRetake,
@@ -292,6 +294,7 @@ private fun ReviewPane(
     language: String,
     blurry: Boolean,
     error: String?,
+    busy: Boolean,
     onTextChange: (String) -> Unit,
     onSave: () -> Unit,
     onRetake: () -> Unit,
@@ -300,17 +303,24 @@ private fun ReviewPane(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Image(bitmap = preview.asImageBitmap(), contentDescription = "Captured page", modifier = Modifier.fillMaxWidth().height(220.dp))
+        Image(
+            bitmap = preview.asImageBitmap(),
+            contentDescription = "Captured page",
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+            contentScale = ContentScale.Fit,
+        )
         Text("Detected language: $language")
         if (blurry) Text("This photo looks a little blurry. You can retake it for better reading.")
         error?.let { Text(it) }
+        if (busy) CircularProgressIndicator()
         OutlinedTextField(
             value = text,
             onValueChange = onTextChange,
             modifier = Modifier.fillMaxWidth().height(240.dp),
+            enabled = !busy,
             label = { Text("Edit the text if something looks wrong") },
         )
-        LargeButton("Use Page", onSave)
-        LargeButton("Retake", onRetake, tonal = true)
+        LargeButton("Use Page", onSave, enabled = !busy)
+        LargeButton("Retake", onRetake, tonal = true, enabled = !busy)
     }
 }

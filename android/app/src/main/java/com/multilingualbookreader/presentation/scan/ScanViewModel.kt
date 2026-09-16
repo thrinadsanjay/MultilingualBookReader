@@ -15,12 +15,14 @@ import com.multilingualbookreader.domain.model.OcrResult
 import com.multilingualbookreader.domain.model.ProcessingStatus
 import com.multilingualbookreader.domain.model.SupportedLanguage
 import com.multilingualbookreader.domain.repository.BookRepository
+import com.multilingualbookreader.ocr.OcrFallbackPolicy
 import com.multilingualbookreader.storage.LocalFileStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -75,13 +77,19 @@ class ScanViewModel @Inject constructor(
         withContext(Dispatchers.Default) {
             val prepared = PageImageProcessor.prepareForOcr(bytes, cropToCameraFrame)
             val result: OcrResult = ocr.recognize(prepared.jpeg)
+            val warning = when {
+                result.text.isBlank() -> "We could not read any text. Try a flatter, brighter photo."
+                OcrFallbackPolicy.looksUnreliable(result.text) ->
+                    "The text still looks off. If the photo is sideways, retake it. Telugu pages need the reading server in Settings."
+                else -> null
+            }
             _state.value = _state.value.copy(
                 preview = prepared.bitmap,
                 ocrText = result.text,
                 language = result.language,
                 busy = false,
                 blurry = prepared.blurry,
-                error = null,
+                error = warning,
             )
         }
     }
@@ -101,33 +109,51 @@ class ScanViewModel @Inject constructor(
         viewModelScope.launch {
             val current = _state.value
             val bitmap = current.preview ?: return@launch
-            val bookId = current.bookId ?: createBook()
-            val pages = books.getPages(bookId)
-            val pageNumber = pages.size + 1
-            val jpeg = ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, this) }.toByteArray()
-            val imagePath = files.savePageImage(bookId, pageNumber, jpeg)
-            books.upsertPage(
-                BookPage(
-                    id = UUID.randomUUID().toString(),
-                    bookId = bookId,
-                    pageNumber = pageNumber,
-                    imagePath = imagePath,
-                    text = current.ocrText,
-                    language = current.language,
-                    processingStatus = ProcessingStatus.COMPLETED,
-                ),
-            )
-            val book = books.getBook(bookId)!!
-            books.upsertBook(
-                book.copy(
-                    totalPages = pageNumber,
-                    coverPath = book.coverPath ?: imagePath,
-                    language = current.language,
-                    updatedAt = System.currentTimeMillis(),
-                ),
-            )
-            _state.value = ScanUiState(bookId = bookId, pageCount = pageNumber)
+            if (current.busy) return@launch
+            _state.value = current.copy(busy = true, error = null)
+            runCatching {
+                withContext(Dispatchers.IO + NonCancellable) {
+                    persistPage(current, bitmap)
+                }
+            }.onSuccess { (bookId, pageNumber) ->
+                _state.value = ScanUiState(bookId = bookId, pageCount = pageNumber)
+            }.onFailure { error ->
+                _state.value = current.copy(
+                    bookId = _state.value.bookId ?: current.bookId,
+                    busy = false,
+                    error = "This page could not be saved. ${error.message?.take(90) ?: "Try again."}",
+                )
+            }
         }
+    }
+
+    private suspend fun persistPage(current: ScanUiState, bitmap: Bitmap): Pair<String, Int> {
+        val bookId = current.bookId ?: createBook()
+        val pageNumber = books.getPages(bookId).size + 1
+        val jpeg = ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, this) }.toByteArray()
+        if (jpeg.isEmpty()) error("Could not write the photo.")
+        val imagePath = files.savePageImage(bookId, pageNumber, jpeg)
+        books.upsertPage(
+            BookPage(
+                id = UUID.randomUUID().toString(),
+                bookId = bookId,
+                pageNumber = pageNumber,
+                imagePath = imagePath,
+                text = current.ocrText,
+                language = current.language,
+                processingStatus = ProcessingStatus.COMPLETED,
+            ),
+        )
+        val book = books.getBook(bookId) ?: error("The book disappeared before the page was saved.")
+        books.upsertBook(
+            book.copy(
+                totalPages = pageNumber,
+                coverPath = book.coverPath ?: imagePath,
+                language = current.language,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+        return bookId to pageNumber
     }
 
     fun retake() {

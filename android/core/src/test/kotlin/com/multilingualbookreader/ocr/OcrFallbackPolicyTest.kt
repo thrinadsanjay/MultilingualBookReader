@@ -32,6 +32,25 @@ class OcrFallbackPolicyTest {
     }
 
     @Test
+    fun strayTeluguGlyphsMeanTheOnDeviceModelGuessedAndTheServerMustRetry() {
+        val tryBackend = OcrFallbackPolicy.shouldTryBackend(
+            localText = "అంటలం %ం &oP\nCb%దం",
+            hintLanguage = null,
+            online = true,
+        )
+        assertThat(tryBackend).isTrue()
+        assertThat(OcrFallbackPolicy.containsTelugu("అంటలం %ం")).isTrue()
+    }
+
+    @Test
+    fun punctuationHeavyGarbageIsNotTreatedAsASuccessfulRead() {
+        assertThat(OcrFallbackPolicy.looksUnreliable("..% &oP (><) Cb%")).isTrue()
+        assertThat(
+            OcrFallbackPolicy.shouldTryBackend("..% &oP (><) Cb%", hintLanguage = null, online = true),
+        ).isTrue()
+    }
+
+    @Test
     fun offlineNeverReachesForTheServer() {
         assertThat(OcrFallbackPolicy.shouldTryBackend(null, SupportedLanguage.TELUGU, online = false)).isFalse()
     }

@@ -39,9 +39,64 @@ object PageImageProcessor {
     fun prepareForOcr(bytes: ByteArray, cropToCameraFrame: Boolean): PreparedPage {
         val decoded = decode(bytes)
         val framed = if (cropToCameraFrame) cropToFrame(decoded, 0.08f, 0.12f, 0.92f, 0.88f) else decoded
-        val enhanced = enhanceContrast(framed)
+        val upright = uprightPage(framed)
+        val enhanced = enhanceContrast(upright)
         val jpeg = ByteArrayOutputStream().apply { enhanced.compress(Bitmap.CompressFormat.JPEG, 90, this) }.toByteArray()
         return PreparedPage(bitmap = enhanced, jpeg = jpeg, blurry = blurScore(enhanced) < 6.0)
+    }
+
+    /**
+     * Printed lines are horizontal. A gallery photo of a book is often stored sideways; EXIF does
+     * not fix that. Score each right angle and keep the one that looks most like a page of lines.
+     */
+    fun uprightPage(source: Bitmap): Bitmap {
+        val scored = listOf(0f, 90f, 180f, 270f).map { degrees ->
+            val rotated = rotate(source, degrees)
+            Triple(degrees, rotated, lineScore(rotated))
+        }
+        val original = scored.first { it.first == 0f }
+        val best = scored.maxBy { it.third }
+        // A sideways page jumps in score; a nearly uniform photo should stay as EXIF left it.
+        val pool = if (best.third > original.third * 1.12) {
+            scored.filter { it.third >= best.third * 0.92f }
+        } else {
+            listOf(original)
+        }
+        return pool.maxBy { topMarginWhiteness(it.second) }.second
+    }
+
+    fun lineScore(bitmap: Bitmap): Double {
+        val sample = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
+        val rows = DoubleArray(sample.height)
+        for (y in 0 until sample.height) {
+            var sum = 0.0
+            for (x in 0 until sample.width) {
+                val p = sample.getPixel(x, y)
+                sum += ((p shr 16 and 0xFF) + (p shr 8 and 0xFF) + (p and 0xFF)) / 3.0
+            }
+            rows[y] = sum / sample.width
+        }
+        if (sample !== bitmap) sample.recycle()
+        val mean = rows.average()
+        return rows.sumOf { value ->
+            val d = value - mean
+            d * d
+        } / rows.size
+    }
+
+    fun topMarginWhiteness(bitmap: Bitmap): Double {
+        val band = (bitmap.height * 0.12f).toInt().coerceAtLeast(2)
+        var sum = 0.0
+        var count = 0
+        val yEnd = band.coerceAtMost(bitmap.height)
+        for (y in 0 until yEnd) {
+            for (x in 0 until bitmap.width step 2) {
+                val p = bitmap.getPixel(x, y)
+                sum += ((p shr 16 and 0xFF) + (p shr 8 and 0xFF) + (p and 0xFF)) / 3.0
+                count++
+            }
+        }
+        return if (count == 0) 0.0 else sum / count
     }
 
     fun cropToFrame(source: Bitmap, leftRatio: Float, topRatio: Float, rightRatio: Float, bottomRatio: Float): Bitmap {

@@ -58,6 +58,19 @@ class PageCanvasTest {
     }
 
     @Test
+    fun aSidewaysPageIsRotatedUntilTheLinesRunAcross() {
+        val upright = pageWithHorizontalLines(width = 48, height = 80)
+        val sideways = PageImageProcessor.rotate(upright, 90f)
+
+        val restored = PageImageProcessor.uprightPage(sideways)
+
+        assertThat(restored.width).isEqualTo(48)
+        assertThat(restored.height).isEqualTo(80)
+        assertThat(PageImageProcessor.lineScore(restored))
+            .isGreaterThan(PageImageProcessor.lineScore(sideways))
+    }
+
+    @Test
     fun anUnerasedCanvasLosesTheTextToABlackBackground() {
         val transparent = Bitmap.createBitmap(40, 40, Bitmap.Config.ARGB_8888)
         Canvas(transparent).drawRect(10f, 10f, 30f, 30f, Paint().apply { color = Color.BLACK })
@@ -67,6 +80,21 @@ class PageCanvasTest {
         // Background and glyphs both end up black, which is exactly why imported pages read as empty.
         assertThat(decoded.getPixel(2, 2)).isEqualTo(Color.BLACK)
         assertThat(decoded.getPixel(20, 20)).isEqualTo(Color.BLACK)
+    }
+
+    private fun pageWithHorizontalLines(width: Int, height: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+        val canvas = Canvas(bitmap)
+        val paint = Paint().apply {
+            color = Color.BLACK
+            strokeWidth = 2f
+        }
+        var y = 12
+        while (y < height - 8) {
+            canvas.drawLine(4f, y.toFloat(), (width - 4).toFloat(), y.toFloat(), paint)
+            y += 6
+        }
+        return bitmap
     }
 
     private fun jpegRoundTrip(bitmap: Bitmap): Bitmap {
