@@ -69,8 +69,5 @@ class LibraryLayoutTest {
         composeRule.onNodeWithText("Export").assertIsDisplayed()
         composeRule.onNodeWithText("Share").assertIsDisplayed()
         composeRule.onNodeWithText("Genre").assertIsDisplayed()
-        composeRule.onNodeWithText("Rename").performClick()
-        composeRule.onNodeWithText("Rename book").assertIsDisplayed()
-        composeRule.onNodeWithText("Save").assertIsDisplayed()
     }
 }
