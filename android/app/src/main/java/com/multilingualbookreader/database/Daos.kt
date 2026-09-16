@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -17,7 +18,8 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBook(id: String): BookEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // REPLACE deletes the row and CASCADE-wipes pages. @Upsert updates in place.
+    @Upsert
     suspend fun upsert(book: BookEntity)
 
     @Query("DELETE FROM books WHERE id = :id")

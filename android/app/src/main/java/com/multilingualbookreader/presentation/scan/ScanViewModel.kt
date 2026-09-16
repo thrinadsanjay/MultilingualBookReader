@@ -364,12 +364,31 @@ class ScanViewModel @Inject constructor(
         text: String,
         language: SupportedLanguage,
     ): Pair<String, Int> {
-        val id = bookId ?: createBook()
+        val id = bookId ?: UUID.randomUUID().toString()
+        val existing = books.getBook(id)
         val pageNumber = books.getPages(id).size + 1
         val jpeg = PageImageProcessor.toJpeg(bitmap, 88)
         if (jpeg.isEmpty()) error("Could not write the photo.")
         val imagePath = files.savePageImage(id, pageNumber, jpeg)
-        books.upsertPage(
+        val now = System.currentTimeMillis()
+        val book = (existing ?: Book(
+            id = id,
+            title = "Scanned book",
+            author = null,
+            coverPath = null,
+            sourceType = BookSource.CAMERA_SCAN,
+            language = SupportedLanguage.UNKNOWN,
+            totalPages = 0,
+            createdAt = now,
+            updatedAt = now,
+        )).copy(
+            totalPages = pageNumber,
+            coverPath = existing?.coverPath ?: imagePath,
+            language = language,
+            updatedAt = now,
+        )
+        books.saveBookPage(
+            book,
             BookPage(
                 id = UUID.randomUUID().toString(),
                 bookId = id,
@@ -380,35 +399,10 @@ class ScanViewModel @Inject constructor(
                 processingStatus = ProcessingStatus.COMPLETED,
             ),
         )
-        val book = books.getBook(id) ?: error("The book disappeared before the page was saved.")
-        books.upsertBook(
-            book.copy(
-                totalPages = pageNumber,
-                coverPath = book.coverPath ?: imagePath,
-                language = language,
-                updatedAt = System.currentTimeMillis(),
-            ),
-        )
+        check(books.getPages(id).any { it.pageNumber == pageNumber }) {
+            "The page was not stored."
+        }
         return id to pageNumber
-    }
-
-    private suspend fun createBook(): String {
-        val id = UUID.randomUUID().toString()
-        books.upsertBook(
-            Book(
-                id = id,
-                title = "Scanned book",
-                author = null,
-                coverPath = null,
-                sourceType = BookSource.CAMERA_SCAN,
-                language = SupportedLanguage.UNKNOWN,
-                totalPages = 0,
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis(),
-            ),
-        )
-        _state.value = _state.value.copy(bookId = id)
-        return id
     }
 
     private data class RecognizedDraft(
