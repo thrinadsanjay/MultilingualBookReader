@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
@@ -44,7 +45,6 @@ import androidx.compose.material.icons.outlined.FlashOff
 import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Hd
 import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.CircularProgressIndicator
@@ -241,14 +241,24 @@ private fun CaptureLayout(
             if (cameraGranted) {
                 CameraPreview(imageCapture = imageCapture)
             } else {
-                Column(
-                    Modifier.fillMaxSize().padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text("Camera access is needed to scan a page.", color = Color.White, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(16.dp))
-                    LargeButton("Allow camera", onRequestCamera, enabled = !state.busy)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        Modifier.padding(horizontal = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("Camera access is needed to scan a page.", color = Color.White, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Allow camera",
+                            color = brand.onAccent,
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(brand.accent)
+                                .clickable(enabled = !state.busy, onClick = onRequestCamera)
+                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                        )
+                    }
                 }
             }
             ScanFrameOverlay(Modifier.fillMaxSize())
@@ -293,24 +303,17 @@ private fun CaptureLayout(
             Text(it, color = brand.danger, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
         }
         Spacer(Modifier.height(14.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ModeChip(
-                "Single Page",
-                Icons.Outlined.Description,
-                state.mode == ScanCaptureMode.SINGLE,
-                Modifier.weight(1f),
-            ) { onMode(ScanCaptureMode.SINGLE) }
-            ModeChip(
-                "Multiple Pages",
-                Icons.Outlined.ContentCopy,
-                state.mode == ScanCaptureMode.MULTIPLE,
-                Modifier.weight(1f),
-            ) { onMode(ScanCaptureMode.MULTIPLE) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            ModeChip("Single Page", Icons.Outlined.Description, state.mode == ScanCaptureMode.SINGLE) {
+                onMode(ScanCaptureMode.SINGLE)
+            }
+            ModeChip("Multiple Pages", Icons.Outlined.ContentCopy, state.mode == ScanCaptureMode.MULTIPLE) {
+                onMode(ScanCaptureMode.MULTIPLE)
+            }
             ModeChip(
                 "Book Mode",
-                Icons.Outlined.MenuBook,
+                Icons.AutoMirrored.Outlined.MenuBook,
                 state.mode == ScanCaptureMode.BOOK,
-                Modifier.weight(1f),
             ) { onMode(ScanCaptureMode.BOOK) }
         }
         Spacer(Modifier.height(18.dp))
@@ -349,7 +352,7 @@ private fun TipBanner(showDetail: Boolean, onTips: () -> Unit) {
                 Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(brand.accent.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.MenuBook, contentDescription = null, tint = brand.accent, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, tint = brand.accent, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
@@ -395,7 +398,7 @@ private fun ModeChip(
             .clip(shape)
             .background(if (selected) brand.accent else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = null, tint = if (selected) brand.onAccent else brand.textSecondary, modifier = Modifier.size(18.dp))
@@ -461,12 +464,12 @@ private fun ShutterButton(enabled: Boolean, onClick: () -> Unit) {
         Modifier
             .size(84.dp)
             .clip(CircleShape)
-            .background(if (enabled) brand.accent else brand.surfaceSecondary)
+            .background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f))
             .clickable(enabled = enabled, onClick = onClick)
             .semantics { contentDescription = "Capture page" },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(70.dp).clip(CircleShape).background(if (enabled) brand.accent else brand.elevated))
+        Box(Modifier.size(70.dp).clip(CircleShape).background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f)))
     }
 }
 
