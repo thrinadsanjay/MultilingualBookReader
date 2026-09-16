@@ -51,5 +51,38 @@ class ScanScreenTest {
         composeRule.onNodeWithText("Book Mode").assertIsDisplayed()
         composeRule.onNodeWithText("Align the page inside the frame").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Capture page").assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithText("Auto Crop").assertIsDisplayed()
+        composeRule.onNodeWithText("High Quality").assertIsDisplayed()
+    }
+
+    @Test
+    fun preparePaneShowsPagesSideBySideWithEditActions() {
+        val first = android.graphics.Bitmap.createBitmap(32, 48, android.graphics.Bitmap.Config.ARGB_8888)
+        val second = android.graphics.Bitmap.createBitmap(32, 48, android.graphics.Bitmap.Config.ARGB_8888)
+        composeRule.setContent {
+            BookReaderTheme(darkTheme = true, highContrast = false, fontScale = 1.0f) {
+                ScanScreen(
+                    state = ScanUiState(
+                        drafts = listOf(PageDraft.from(first), PageDraft.from(second)),
+                        selectedDraftIndex = 0,
+                    ),
+                    onCapture = {},
+                    onTextChange = {},
+                    onSave = {},
+                    onRetake = {},
+                    onRead = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Prepare pages").assertIsDisplayed()
+        composeRule.onNodeWithText("2 photos").assertIsDisplayed()
+        composeRule.onNodeWithText("Rotate").assertIsDisplayed()
+        composeRule.onNodeWithText("Crop").assertIsDisplayed()
+        composeRule.onNodeWithText("Enhance").assertIsDisplayed()
+        composeRule.onNodeWithText("Detect text").assertIsDisplayed()
+        composeRule.onNodeWithText("Detect all pages").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Page 1").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Page 2").assertIsDisplayed()
     }
 }

@@ -22,6 +22,7 @@ import com.multilingualbookreader.presentation.components.ReaderBottomBar
 import com.multilingualbookreader.presentation.home.HomeScreen
 import com.multilingualbookreader.presentation.home.HomeUiState
 import com.multilingualbookreader.presentation.library.LibraryScreen
+import com.multilingualbookreader.presentation.scan.PageDraft
 import com.multilingualbookreader.presentation.scan.ScanScreen
 import com.multilingualbookreader.presentation.scan.ScanUiState
 import com.multilingualbookreader.presentation.reader.ReaderScreen
@@ -192,6 +193,27 @@ class ScreenRenderTest {
             onCapture = {},
             onPickGallery = {},
             onImportPdf = {},
+            onRequestCamera = {},
+            onTextChange = {},
+            onSave = {},
+            onRetake = {},
+            onRead = {},
+            onBack = {},
+        )
+    }
+
+    @Test
+    fun scanPreparePagesDark() = render("scan-prepare-pages-dark", dark = true) {
+        val first = Bitmap.createBitmap(48, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFE8D5B5.toInt()) }
+        val second = Bitmap.createBitmap(48, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFC9B8A0.toInt()) }
+        ScanScreen(
+            state = ScanUiState(
+                drafts = listOf(PageDraft.from(first), PageDraft.from(second)),
+                selectedDraftIndex = 0,
+            ),
+            cameraGranted = false,
+            onCapture = {},
+            onPickGallery = {},
             onRequestCamera = {},
             onTextChange = {},
             onSave = {},

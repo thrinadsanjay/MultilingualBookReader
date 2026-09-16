@@ -37,13 +37,34 @@ object PageImageProcessor {
 
     /** Camera captures are framed by the on-screen overlay; gallery photos are already the page. */
     fun prepareForOcr(bytes: ByteArray, cropToCameraFrame: Boolean): PreparedPage {
-        val decoded = decode(bytes)
-        val framed = if (cropToCameraFrame) cropToFrame(decoded, 0.08f, 0.12f, 0.92f, 0.88f) else decoded
-        val upright = uprightPage(framed)
-        val enhanced = enhanceContrast(upright)
-        val jpeg = ByteArrayOutputStream().apply { enhanced.compress(Bitmap.CompressFormat.JPEG, 90, this) }.toByteArray()
+        val decoded = decodeForEditing(bytes, cropToCameraFrame)
+        val enhanced = enhanceContrast(decoded)
+        val jpeg = toJpeg(enhanced)
         return PreparedPage(bitmap = enhanced, jpeg = jpeg, blurry = blurScore(enhanced) < 6.0)
     }
+
+    /**
+     * EXIF only. Guessing a 90° turn from line scores was rotating already-upright Telugu pages
+     * and sending garbage to OCR. The prepare screen lets the reader rotate the page themselves.
+     */
+    fun decodeForEditing(bytes: ByteArray, cropToCameraFrame: Boolean): Bitmap {
+        val decoded = decode(bytes)
+        return if (cropToCameraFrame) cropToFrame(decoded, 0.05f, 0.05f, 0.95f, 0.95f) else decoded
+    }
+
+    fun renderDraft(source: Bitmap, rotationDegrees: Int, cropInset: Float, enhance: Boolean): Bitmap {
+        val rotated = rotate(source, (rotationDegrees % 360).toFloat())
+        val inset = cropInset.coerceIn(0f, 0.4f)
+        val cropped = if (inset > 0.001f) {
+            cropToFrame(rotated, inset, inset, 1f - inset, 1f - inset)
+        } else {
+            rotated
+        }
+        return if (enhance) enhanceContrast(cropped) else cropped
+    }
+
+    fun toJpeg(bitmap: Bitmap, quality: Int = 90): ByteArray =
+        ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, this) }.toByteArray()
 
     /**
      * Printed lines are horizontal. A gallery photo of a book is often stored sideways; EXIF does

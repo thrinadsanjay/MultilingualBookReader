@@ -48,13 +48,24 @@ class PageCanvasTest {
         val camera = PageImageProcessor.prepareForOcr(jpeg, cropToCameraFrame = true)
         val gallery = PageImageProcessor.prepareForOcr(jpeg, cropToCameraFrame = false)
 
-        assertThat(camera.bitmap.width).isEqualTo(84)
-        assertThat(camera.bitmap.height).isEqualTo(76)
+        assertThat(camera.bitmap.width).isEqualTo(90)
+        assertThat(camera.bitmap.height).isEqualTo(90)
         assertThat(gallery.bitmap.width).isEqualTo(100)
         assertThat(gallery.bitmap.height).isEqualTo(100)
-        val croppedDirect = PageImageProcessor.cropToFrame(source, 0.08f, 0.12f, 0.92f, 0.88f)
+        val croppedDirect = PageImageProcessor.cropToFrame(source, 0.05f, 0.05f, 0.95f, 0.95f)
         assertThat(croppedDirect.getPixel(0, 0)).isEqualTo(Color.WHITE)
         assertThat(source.getPixel(1, 1)).isEqualTo(Color.RED)
+    }
+
+    @Test
+    fun aDraftKeepsTheRotationTheReaderPicked() {
+        val upright = pageWithHorizontalLines(width = 48, height = 80)
+        val rendered = PageImageProcessor.renderDraft(upright, rotationDegrees = 90, cropInset = 0f, enhance = false)
+        assertThat(rendered.width).isEqualTo(80)
+        assertThat(rendered.height).isEqualTo(48)
+        val cropped = PageImageProcessor.renderDraft(upright, rotationDegrees = 0, cropInset = 0.10f, enhance = false)
+        assertThat(cropped.width).isEqualTo(39)
+        assertThat(cropped.height).isEqualTo(64)
     }
 
     @Test
