@@ -25,20 +25,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.RotateRight
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FlashAuto
 import androidx.compose.material.icons.outlined.FlashOff
@@ -101,11 +104,11 @@ fun ScanRoute(
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(viewModel::onGalleryPicked)
-    }
-    val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let(viewModel::onGalleryPicked)
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(20),
+    ) { uris -> viewModel.onGalleryPicked(uris) }
+    val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        viewModel.onGalleryPicked(uris)
     }
     fun pickGallery() {
         if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
@@ -134,6 +137,14 @@ fun ScanRoute(
         onToggleCrop = viewModel::toggleAutoCrop,
         onToggleQuality = viewModel::toggleHighQuality,
         onToggleTips = viewModel::toggleTips,
+        onSelectDraft = viewModel::selectDraft,
+        onRotate = viewModel::rotateSelected,
+        onCyclePageCrop = viewModel::cycleCropSelected,
+        onToggleEnhance = viewModel::toggleEnhanceSelected,
+        onRemoveDraft = viewModel::removeSelected,
+        onCancelPrepare = viewModel::cancelPrepare,
+        onDetect = viewModel::detectSelected,
+        onDetectAll = viewModel::detectAll,
         onTextChange = viewModel::updateText,
         onSave = viewModel::savePage,
         onRetake = viewModel::retake,
@@ -160,13 +171,47 @@ fun ScanScreen(
     onToggleCrop: () -> Unit = {},
     onToggleQuality: () -> Unit = {},
     onToggleTips: () -> Unit = {},
+    onSelectDraft: (Int) -> Unit = {},
+    onRotate: () -> Unit = {},
+    onCyclePageCrop: () -> Unit = {},
+    onToggleEnhance: () -> Unit = {},
+    onRemoveDraft: () -> Unit = {},
+    onCancelPrepare: () -> Unit = {},
+    onDetect: () -> Unit = {},
+    onDetectAll: () -> Unit = {},
 ) {
     val brand = LocalBrand.current
     val captureBrand = darkBrand()
-    Box(Modifier.fillMaxSize().background(if (state.preview == null) captureBrand.background else brand.background)) {
-        if (state.preview == null) {
-            CompositionLocalProvider(LocalBrand provides captureBrand) {
-                CaptureLayout(
+    val captureChrome = state.preview == null
+    Box(Modifier.fillMaxSize().background(if (captureChrome) captureBrand.background else brand.background)) {
+        CompositionLocalProvider(LocalBrand provides if (captureChrome) captureBrand else brand) {
+            when {
+                state.preview != null -> ReviewPane(
+                    preview = state.preview,
+                    text = state.ocrText,
+                    language = state.language.displayName,
+                    blurry = state.blurry,
+                    error = state.error,
+                    busy = state.busy,
+                    remaining = state.drafts.size,
+                    onTextChange = onTextChange,
+                    onSave = onSave,
+                    onRetake = onRetake,
+                    onBack = onBack,
+                )
+                state.drafts.isNotEmpty() -> PreparePane(
+                    state = state,
+                    onSelect = onSelectDraft,
+                    onRotate = onRotate,
+                    onCycleCrop = onCyclePageCrop,
+                    onToggleEnhance = onToggleEnhance,
+                    onRemove = onRemoveDraft,
+                    onAdd = onPickGallery,
+                    onDetect = onDetect,
+                    onDetectAll = onDetectAll,
+                    onBack = onCancelPrepare,
+                )
+                else -> CaptureLayout(
                     state = state,
                     cameraGranted = cameraGranted,
                     onCapture = onCapture,
@@ -182,20 +227,6 @@ fun ScanScreen(
                     onBack = onBack,
                 )
             }
-        } else {
-            ReviewPane(
-                modifier = Modifier.statusBarsPadding().navigationBarsPadding(),
-                preview = state.preview,
-                text = state.ocrText,
-                language = state.language.displayName,
-                blurry = state.blurry,
-                error = state.error,
-                busy = state.busy,
-                onTextChange = onTextChange,
-                onSave = onSave,
-                onRetake = onRetake,
-                onBack = onBack,
-            )
         }
     }
 }
@@ -220,10 +251,10 @@ private fun CaptureLayout(
     val context = LocalContext.current
     val imageCapture = rememberImageCapture(highQuality = state.highQuality, flash = state.flash)
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxSize().padding(horizontal = 12.dp).padding(top = 2.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Outlined.Close, contentDescription = "Back", tint = brand.textPrimary)
             }
             Text("Scan Book", style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
@@ -232,11 +263,10 @@ private fun CaptureLayout(
                 Text("Pages ${state.pageCount}", color = brand.textSecondary, style = MaterialTheme.typography.labelLarge)
             }
         }
-        Spacer(Modifier.height(8.dp))
         TipBanner(showDetail = state.showTips, onTips = onToggleTips)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
         Box(
-            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(28.dp)).background(Color.Black),
+            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(22.dp)).background(Color.Black),
         ) {
             if (cameraGranted) {
                 CameraPreview(imageCapture = imageCapture)
@@ -262,47 +292,25 @@ private fun CaptureLayout(
                 }
             }
             ScanFrameOverlay(Modifier.fillMaxSize())
-            Column(
-                Modifier.align(Alignment.CenterEnd).padding(end = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                RailButton(
-                    icon = when (state.flash) {
-                        ScanFlash.OFF -> Icons.Outlined.FlashOff
-                        ScanFlash.AUTO -> Icons.Outlined.FlashAuto
-                        ScanFlash.ON -> Icons.Outlined.FlashOn
-                    },
-                    label = when (state.flash) {
-                        ScanFlash.OFF -> "Off"
-                        ScanFlash.AUTO -> "Auto"
-                        ScanFlash.ON -> "On"
-                    },
-                    selected = state.flash != ScanFlash.OFF,
-                    onClick = onCycleFlash,
-                )
-                RailButton(Icons.Outlined.Crop, "Auto Crop", selected = state.autoCrop, onClick = onToggleCrop)
-                RailButton(Icons.Outlined.Hd, "High Quality", selected = state.highQuality, onClick = onToggleQuality)
-            }
             Text(
                 "Align the page inside the frame",
                 color = Color.White,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 18.dp)
+                    .padding(bottom = 10.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
             )
             if (state.busy) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center), color = brand.accent)
             }
         }
         state.error?.let {
-            Text(it, color = brand.danger, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+            Text(it, color = brand.danger, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             ModeChip("Single Page", Icons.Outlined.Description, state.mode == ScanCaptureMode.SINGLE) {
                 onMode(ScanCaptureMode.SINGLE)
@@ -316,11 +324,34 @@ private fun CaptureLayout(
                 state.mode == ScanCaptureMode.BOOK,
             ) { onMode(ScanCaptureMode.BOOK) }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            BottomTool(
+                icon = when (state.flash) {
+                    ScanFlash.OFF -> Icons.Outlined.FlashOff
+                    ScanFlash.AUTO -> Icons.Outlined.FlashAuto
+                    ScanFlash.ON -> Icons.Outlined.FlashOn
+                },
+                label = when (state.flash) {
+                    ScanFlash.OFF -> "Off"
+                    ScanFlash.AUTO -> "Auto"
+                    ScanFlash.ON -> "On"
+                },
+                selected = state.flash != ScanFlash.OFF,
+                onClick = onCycleFlash,
+            )
+            BottomTool(Icons.Outlined.Crop, "Auto Crop", selected = state.autoCrop, onClick = onToggleCrop)
+            BottomTool(Icons.Outlined.Hd, "High Quality", selected = state.highQuality, onClick = onToggleQuality)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(
+            Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             CircleAction(Icons.Outlined.PhotoLibrary, "Choose from gallery", enabled = !state.busy, onClick = onPickGallery)
             ShutterButton(
@@ -330,10 +361,124 @@ private fun CaptureLayout(
             CircleAction(Icons.Outlined.PictureAsPdf, "Import PDF instead", enabled = !state.busy, onClick = onImportPdf)
         }
         if (onRead != null) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             LargeButton("Read book", onRead, tonal = true)
         }
+    }
+}
+
+@Composable
+private fun PreparePane(
+    state: ScanUiState,
+    onSelect: (Int) -> Unit,
+    onRotate: () -> Unit,
+    onCycleCrop: () -> Unit,
+    onToggleEnhance: () -> Unit,
+    onRemove: () -> Unit,
+    onAdd: () -> Unit,
+    onDetect: () -> Unit,
+    onDetectAll: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val brand = LocalBrand.current
+    val selected = state.drafts.getOrNull(state.selectedDraftIndex)
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 12.dp).padding(top = 2.dp, bottom = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Outlined.Close, contentDescription = "Back", tint = brand.textPrimary)
+            }
+            Text("Prepare pages", style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
+            Spacer(Modifier.weight(1f))
+            Text("${state.drafts.size} photo${if (state.drafts.size == 1) "" else "s"}", color = brand.textSecondary)
+        }
+        Text(
+            "Rotate until the writing reads left to right. Crop and enhance if you need to, then detect text.",
+            color = brand.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            itemsIndexed(state.drafts, key = { _, draft -> draft.id }) { index, draft ->
+                val selectedPage = index == state.selectedDraftIndex
+                Image(
+                    bitmap = draft.preview.asImageBitmap(),
+                    contentDescription = "Page ${index + 1}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(2.dp, if (selectedPage) brand.accent else brand.border, RoundedCornerShape(14.dp))
+                        .clickable { onSelect(index) },
+                )
+            }
+        }
+        Box(
+            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(22.dp)).background(brand.elevated),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected != null) {
+                Image(
+                    bitmap = selected.preview.asImageBitmap(),
+                    contentDescription = "Selected page",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                )
+            }
+            if (state.busy) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = brand.accent)
+                    state.busyMessage?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = brand.textPrimary)
+                    }
+                }
+            }
+        }
+        state.error?.let {
+            Text(it, color = brand.danger, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            BottomTool(Icons.AutoMirrored.Outlined.RotateRight, "Rotate", selected = false, onClick = onRotate, enabled = !state.busy)
+            BottomTool(
+                Icons.Outlined.Crop,
+                if (selected != null && selected.cropInset > 0f) "Crop ${ (selected.cropInset * 100).toInt() }%" else "Crop",
+                selected = selected?.cropInset?.let { it > 0f } == true,
+                onClick = onCycleCrop,
+                enabled = !state.busy,
+            )
+            BottomTool(
+                Icons.Outlined.AutoFixHigh,
+                "Enhance",
+                selected = selected?.enhance == true,
+                onClick = onToggleEnhance,
+                enabled = !state.busy,
+            )
+        }
         Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            CircleAction(Icons.Outlined.PhotoLibrary, "Add photos", enabled = !state.busy, onClick = onAdd)
+            CircleAction(Icons.Outlined.Delete, "Remove page", enabled = !state.busy && state.drafts.isNotEmpty(), onClick = onRemove)
+        }
+        Spacer(Modifier.height(10.dp))
+        LargeButton("Detect text", onDetect, enabled = !state.busy && selected != null)
+        if (state.drafts.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            LargeButton("Detect all pages", onDetectAll, tonal = true, enabled = !state.busy)
+        }
     }
 }
 
@@ -343,18 +488,18 @@ private fun TipBanner(showDetail: Boolean, onTips: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(brand.elevated)
-            .padding(12.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(brand.accent.copy(alpha = 0.2f)),
+                Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).background(brand.accent.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, tint = brand.accent, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, tint = brand.accent, modifier = Modifier.size(16.dp))
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text("Position the page inside the frame", color = brand.textPrimary, style = MaterialTheme.typography.titleSmall)
                 Text("Keep the page flat, well lit, and avoid shadows.", color = brand.textSecondary, style = MaterialTheme.typography.bodySmall)
@@ -364,7 +509,7 @@ private fun TipBanner(showDetail: Boolean, onTips: () -> Unit) {
                     .clip(RoundedCornerShape(16.dp))
                     .background(brand.accent.copy(alpha = 0.18f))
                     .clickable(onClick = onTips)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = brand.accent, modifier = Modifier.size(14.dp))
@@ -373,9 +518,9 @@ private fun TipBanner(showDetail: Boolean, onTips: () -> Unit) {
             }
         }
         if (showDetail) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
-                "Single Page saves and opens the book. Multiple Pages keeps adding. Book Mode skips the camera crop for an open spread. Telugu needs the reading server.",
+                "After you capture or pick photos, rotate them until the lines read left to right, then detect text. Telugu needs the reading server.",
                 color = brand.textSecondary,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -398,11 +543,11 @@ private fun ModeChip(
             .clip(shape)
             .background(if (selected) brand.accent else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, tint = if (selected) brand.onAccent else brand.textSecondary, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.height(4.dp))
+        Icon(icon, contentDescription = null, tint = if (selected) brand.onAccent else brand.textSecondary, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             label,
             color = if (selected) brand.onAccent else brand.textSecondary,
@@ -414,26 +559,38 @@ private fun ModeChip(
 }
 
 @Composable
-private fun RailButton(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun BottomTool(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
     val brand = LocalBrand.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clickable(onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = label },
+            .width(88.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = label },
     ) {
         Box(
             Modifier
-                .size(44.dp)
+                .size(56.dp)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, if (selected) brand.accent else Color.White.copy(alpha = 0.2f), CircleShape),
+                .background(brand.elevated)
+                .border(1.dp, if (selected) brand.accent else Color.Transparent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = if (selected) brand.accent else Color.White, modifier = Modifier.size(18.dp))
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (selected) brand.accent else brand.textPrimary,
+                modifier = Modifier.size(22.dp),
+            )
         }
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = Color.White, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(label, color = brand.textSecondary, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
     }
 }
 
@@ -460,16 +617,21 @@ private fun CircleAction(icon: ImageVector, label: String, enabled: Boolean, onC
 @Composable
 private fun ShutterButton(enabled: Boolean, onClick: () -> Unit) {
     val brand = LocalBrand.current
-    Box(
-        Modifier
-            .size(84.dp)
-            .clip(CircleShape)
-            .background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .semantics { contentDescription = "Capture page" },
-        contentAlignment = Alignment.Center,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(88.dp),
     ) {
-        Box(Modifier.size(70.dp).clip(CircleShape).background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f)))
+        Box(
+            Modifier
+                .size(84.dp)
+                .clip(CircleShape)
+                .background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f))
+                .clickable(enabled = enabled, onClick = onClick)
+                .semantics { contentDescription = "Capture page" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(70.dp).clip(CircleShape).background(brand.accent.copy(alpha = if (enabled) 1f else 0.38f)))
+        }
     }
 }
 
@@ -552,10 +714,10 @@ private fun bindCamera(
 private fun ScanFrameOverlay(modifier: Modifier) {
     val accent = LocalBrand.current.accent
     Canvas(modifier) {
-        val side = min(size.width, size.height) * 0.72f
+        val side = min(size.width, size.height) * 0.90f
         val left = (size.width - side) / 2f
         val top = (size.height - side) / 2f
-        val corner = side * 0.16f
+        val corner = side * 0.14f
         val stroke = 6.dp.toPx()
         drawRect(
             color = Color.White.copy(alpha = 0.28f),
@@ -581,13 +743,13 @@ private fun ScanFrameOverlay(modifier: Modifier) {
 
 @Composable
 private fun ReviewPane(
-    modifier: Modifier,
     preview: Bitmap,
     text: String,
     language: String,
     blurry: Boolean,
     error: String?,
     busy: Boolean,
+    remaining: Int,
     onTextChange: (String) -> Unit,
     onSave: () -> Unit,
     onRetake: () -> Unit,
@@ -595,7 +757,7 @@ private fun ReviewPane(
 ) {
     val brand = LocalBrand.current
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -622,6 +784,6 @@ private fun ReviewPane(
             label = { Text("Edit the text if something looks wrong") },
         )
         LargeButton("Use Page", onSave, enabled = !busy)
-        LargeButton("Retake", onRetake, tonal = true, enabled = !busy)
+        LargeButton(if (remaining > 0) "Adjust photo" else "Retake", onRetake, tonal = true, enabled = !busy)
     }
 }

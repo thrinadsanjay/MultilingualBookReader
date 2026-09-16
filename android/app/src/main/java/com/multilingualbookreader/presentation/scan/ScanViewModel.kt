@@ -18,7 +18,6 @@ import com.multilingualbookreader.domain.repository.BookRepository
 import com.multilingualbookreader.ocr.OcrFallbackPolicy
 import com.multilingualbookreader.storage.LocalFileStore
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -32,13 +31,46 @@ enum class ScanCaptureMode { SINGLE, MULTIPLE, BOOK }
 
 enum class ScanFlash { OFF, AUTO, ON }
 
+data class PageDraft(
+    val id: String,
+    val source: Bitmap,
+    val rotationDegrees: Int = 0,
+    val cropInset: Float = 0f,
+    val enhance: Boolean = false,
+    val preview: Bitmap,
+) {
+    fun edited(
+        rotationDegrees: Int = this.rotationDegrees,
+        cropInset: Float = this.cropInset,
+        enhance: Boolean = this.enhance,
+    ): PageDraft {
+        val rendered = PageImageProcessor.renderDraft(source, rotationDegrees, cropInset, enhance)
+        return copy(
+            rotationDegrees = rotationDegrees,
+            cropInset = cropInset,
+            enhance = enhance,
+            preview = rendered,
+        )
+    }
+
+    companion object {
+        fun from(source: Bitmap): PageDraft {
+            val id = UUID.randomUUID().toString()
+            return PageDraft(id = id, source = source, preview = source)
+        }
+    }
+}
+
 data class ScanUiState(
     val bookId: String? = null,
     val pageCount: Int = 0,
+    val drafts: List<PageDraft> = emptyList(),
+    val selectedDraftIndex: Int = 0,
     val preview: Bitmap? = null,
     val ocrText: String = "",
     val language: SupportedLanguage = SupportedLanguage.UNKNOWN,
     val busy: Boolean = false,
+    val busyMessage: String? = null,
     val error: String? = null,
     val blurry: Boolean = false,
     val mode: ScanCaptureMode = ScanCaptureMode.SINGLE,
@@ -63,7 +95,7 @@ class ScanViewModel @Inject constructor(
 
     fun onCaptured(bytes: ByteArray) {
         val crop = _state.value.autoCrop && _state.value.mode != ScanCaptureMode.BOOK
-        recognizePage(bytes, cropToCameraFrame = crop)
+        viewModelScope.launch { importBytes(listOf(bytes), cropToCameraFrame = crop) }
     }
 
     fun setMode(mode: ScanCaptureMode) {
@@ -95,52 +127,114 @@ class ScanViewModel @Inject constructor(
         _state.value = _state.value.copy(openReaderId = null)
     }
 
-    fun onGalleryPicked(uri: Uri) {
+    fun onGalleryPicked(uri: Uri) = onGalleryPicked(listOf(uri))
+
+    fun onGalleryPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(busy = true, error = null)
+            _state.value = _state.value.copy(busy = true, error = null, busyMessage = "Loading photos…")
             runCatching {
-                val bytes = withContext(Dispatchers.IO) {
-                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: error("Could not open that photo.")
+                val pages = withContext(Dispatchers.IO) {
+                    uris.map { uri ->
+                        val bytes = getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: error("Could not open that photo.")
+                        PageImageProcessor.decodeForEditing(bytes, cropToCameraFrame = false)
+                    }
                 }
-                recognizeLoadedPage(bytes, cropToCameraFrame = false)
+                appendDrafts(pages)
             }.onFailure(::failRead)
         }
     }
 
-    private fun recognizePage(bytes: ByteArray, cropToCameraFrame: Boolean) {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(busy = true, error = null)
-            runCatching { recognizeLoadedPage(bytes, cropToCameraFrame) }.onFailure(::failRead)
-        }
+    fun selectDraft(index: Int) {
+        val drafts = _state.value.drafts
+        if (index !in drafts.indices) return
+        _state.value = _state.value.copy(selectedDraftIndex = index, error = null)
     }
 
-    private suspend fun recognizeLoadedPage(bytes: ByteArray, cropToCameraFrame: Boolean) {
-        withContext(Dispatchers.Default) {
-            val prepared = PageImageProcessor.prepareForOcr(bytes, cropToCameraFrame)
-            val result: OcrResult = ocr.recognize(prepared.jpeg)
-            val warning = when {
-                result.text.isBlank() -> "We could not read any text. Try a flatter, brighter photo."
-                OcrFallbackPolicy.looksUnreliable(result.text) ->
-                    "The text still looks off. If the photo is sideways, retake it. Telugu pages need the reading server in Settings."
-                else -> null
+    fun rotateSelected() {
+        updateSelected { it.edited(rotationDegrees = (it.rotationDegrees + 90) % 360) }
+    }
+
+    fun cycleCropSelected() {
+        updateSelected { draft ->
+            val next = when {
+                draft.cropInset < 0.03f -> 0.06f
+                draft.cropInset < 0.09f -> 0.12f
+                draft.cropInset < 0.15f -> 0.18f
+                else -> 0f
             }
-            _state.value = _state.value.copy(
-                preview = prepared.bitmap,
-                ocrText = result.text,
-                language = result.language,
-                busy = false,
-                blurry = prepared.blurry,
-                error = warning,
-            )
+            draft.edited(cropInset = next)
         }
     }
 
-    private fun failRead(error: Throwable) {
-        _state.value = _state.value.copy(
-            busy = false,
-            error = "We could not read this page. Try a clearer photo. (${error.message?.take(90) ?: "unknown error"})",
+    fun toggleEnhanceSelected() {
+        updateSelected { it.edited(enhance = !it.enhance) }
+    }
+
+    fun removeSelected() {
+        val current = _state.value
+        if (current.drafts.isEmpty()) return
+        val remaining = current.drafts.filterIndexed { index, _ -> index != current.selectedDraftIndex }
+        _state.value = current.copy(
+            drafts = remaining,
+            selectedDraftIndex = remaining.lastIndex.coerceAtLeast(0),
+            error = null,
         )
+    }
+
+    fun cancelPrepare() {
+        _state.value = _state.value.copy(drafts = emptyList(), selectedDraftIndex = 0, error = null, busy = false)
+    }
+
+    fun detectSelected() {
+        val current = _state.value
+        val draft = current.drafts.getOrNull(current.selectedDraftIndex) ?: return
+        viewModelScope.launch {
+            _state.value = current.copy(busy = true, error = null, busyMessage = "Reading this page…")
+            runCatching { recognizeDraft(draft) }.onFailure(::failRead)
+        }
+    }
+
+    fun detectAll() {
+        val drafts = _state.value.drafts
+        if (drafts.isEmpty()) return
+        viewModelScope.launch {
+            val start = _state.value
+            if (start.busy) return@launch
+            _state.value = start.copy(busy = true, error = null)
+            runCatching {
+                var bookId = start.bookId
+                var pageCount = start.pageCount
+                drafts.forEachIndexed { index, draft ->
+                    _state.value = _state.value.copy(busyMessage = "Reading page ${index + 1} of ${drafts.size}…")
+                    val recognized = withContext(Dispatchers.Default) { ocrPage(draft) }
+                    val persisted = withContext(Dispatchers.IO + NonCancellable) {
+                    persistPage(
+                        bookId = bookId,
+                        bitmap = recognized.bitmap,
+                        text = recognized.text,
+                        language = recognized.language,
+                    )
+                    }
+                    bookId = persisted.first
+                    pageCount = persisted.second
+                }
+                _state.value = start.copy(
+                    bookId = bookId,
+                    pageCount = pageCount,
+                    drafts = emptyList(),
+                    selectedDraftIndex = 0,
+                    preview = null,
+                    ocrText = "",
+                    busy = false,
+                    busyMessage = null,
+                    error = null,
+                    blurry = false,
+                    openReaderId = bookId.takeIf { start.mode == ScanCaptureMode.SINGLE },
+                )
+            }.onFailure(::failRead)
+        }
     }
 
     fun updateText(text: String) {
@@ -152,63 +246,150 @@ class ScanViewModel @Inject constructor(
             val current = _state.value
             val bitmap = current.preview ?: return@launch
             if (current.busy) return@launch
-            _state.value = current.copy(busy = true, error = null)
+            _state.value = current.copy(busy = true, error = null, busyMessage = "Saving page…")
             runCatching {
                 withContext(Dispatchers.IO + NonCancellable) {
-                    persistPage(current, bitmap)
+                    persistPage(
+                        bookId = current.bookId,
+                        bitmap = bitmap,
+                        text = current.ocrText,
+                        language = current.language,
+                    )
                 }
             }.onSuccess { (bookId, pageNumber) ->
+                val remaining = current.drafts.filterIndexed { index, _ -> index != current.selectedDraftIndex }
                 _state.value = current.copy(
                     bookId = bookId,
                     pageCount = pageNumber,
+                    drafts = remaining,
+                    selectedDraftIndex = remaining.lastIndex.coerceAtLeast(0),
                     preview = null,
                     ocrText = "",
                     busy = false,
+                    busyMessage = null,
                     error = null,
                     blurry = false,
-                    openReaderId = bookId.takeIf { current.mode == ScanCaptureMode.SINGLE },
+                    openReaderId = bookId.takeIf { current.mode == ScanCaptureMode.SINGLE && remaining.isEmpty() },
                 )
             }.onFailure { error ->
                 _state.value = current.copy(
                     bookId = _state.value.bookId ?: current.bookId,
                     busy = false,
+                    busyMessage = null,
                     error = "This page could not be saved. ${error.message?.take(90) ?: "Try again."}",
                 )
             }
         }
     }
 
-    private suspend fun persistPage(current: ScanUiState, bitmap: Bitmap): Pair<String, Int> {
-        val bookId = current.bookId ?: createBook()
-        val pageNumber = books.getPages(bookId).size + 1
-        val jpeg = ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, this) }.toByteArray()
+    fun retake() {
+        _state.value = _state.value.copy(preview = null, ocrText = "", error = null, blurry = false, busyMessage = null)
+    }
+
+    private fun updateSelected(transform: (PageDraft) -> PageDraft) {
+        val current = _state.value
+        val index = current.selectedDraftIndex
+        val draft = current.drafts.getOrNull(index) ?: return
+        val updated = current.drafts.toMutableList().also { it[index] = transform(draft) }
+        _state.value = current.copy(drafts = updated, error = null)
+    }
+
+    private suspend fun importBytes(pages: List<ByteArray>, cropToCameraFrame: Boolean) {
+        _state.value = _state.value.copy(busy = true, error = null, busyMessage = "Preparing page…")
+        runCatching {
+            val bitmaps = withContext(Dispatchers.Default) {
+                pages.map { PageImageProcessor.decodeForEditing(it, cropToCameraFrame) }
+            }
+            appendDrafts(bitmaps)
+        }.onFailure(::failRead)
+    }
+
+    private fun appendDrafts(pages: List<Bitmap>) {
+        if (pages.isEmpty()) {
+            _state.value = _state.value.copy(busy = false, busyMessage = null)
+            return
+        }
+        val current = _state.value
+        val added = pages.map(PageDraft::from)
+        val drafts = current.drafts + added
+        _state.value = current.copy(
+            drafts = drafts,
+            selectedDraftIndex = current.drafts.size,
+            preview = null,
+            ocrText = "",
+            busy = false,
+            busyMessage = null,
+            error = null,
+            blurry = false,
+        )
+    }
+
+    private suspend fun recognizeDraft(draft: PageDraft) {
+        val recognized = withContext(Dispatchers.Default) { ocrPage(draft) }
+        _state.value = _state.value.copy(
+            preview = recognized.bitmap,
+            ocrText = recognized.text,
+            language = recognized.language,
+            busy = false,
+            busyMessage = null,
+            blurry = recognized.blurry,
+            error = recognized.warning,
+        )
+    }
+
+    private suspend fun ocrPage(draft: PageDraft): RecognizedDraft {
+        val bitmap = draft.preview
+        val jpeg = PageImageProcessor.toJpeg(bitmap)
+        val result: OcrResult = ocr.recognize(jpeg)
+        val warning = when {
+            result.text.isBlank() -> "We could not read any text. Rotate until the lines read left to right, then try again."
+            OcrFallbackPolicy.looksUnreliable(result.text) ->
+                "The text still looks off. Rotate the photo until the writing is upright. Telugu pages need the reading server in Settings."
+            else -> null
+        }
+        return RecognizedDraft(bitmap, result.text, result.language, PageImageProcessor.blurScore(bitmap) < 6.0, warning)
+    }
+
+    private fun failRead(error: Throwable) {
+        _state.value = _state.value.copy(
+            busy = false,
+            busyMessage = null,
+            error = "We could not read this page. Try a clearer photo. (${error.message?.take(90) ?: "unknown error"})",
+        )
+    }
+
+    private suspend fun persistPage(
+        bookId: String?,
+        bitmap: Bitmap,
+        text: String,
+        language: SupportedLanguage,
+    ): Pair<String, Int> {
+        val id = bookId ?: createBook()
+        val pageNumber = books.getPages(id).size + 1
+        val jpeg = PageImageProcessor.toJpeg(bitmap, 88)
         if (jpeg.isEmpty()) error("Could not write the photo.")
-        val imagePath = files.savePageImage(bookId, pageNumber, jpeg)
+        val imagePath = files.savePageImage(id, pageNumber, jpeg)
         books.upsertPage(
             BookPage(
                 id = UUID.randomUUID().toString(),
-                bookId = bookId,
+                bookId = id,
                 pageNumber = pageNumber,
                 imagePath = imagePath,
-                text = current.ocrText,
-                language = current.language,
+                text = text,
+                language = language,
                 processingStatus = ProcessingStatus.COMPLETED,
             ),
         )
-        val book = books.getBook(bookId) ?: error("The book disappeared before the page was saved.")
+        val book = books.getBook(id) ?: error("The book disappeared before the page was saved.")
         books.upsertBook(
             book.copy(
                 totalPages = pageNumber,
                 coverPath = book.coverPath ?: imagePath,
-                language = current.language,
+                language = language,
                 updatedAt = System.currentTimeMillis(),
             ),
         )
-        return bookId to pageNumber
-    }
-
-    fun retake() {
-        _state.value = _state.value.copy(preview = null, ocrText = "", error = null, blurry = false)
+        return id to pageNumber
     }
 
     private suspend fun createBook(): String {
@@ -229,4 +410,12 @@ class ScanViewModel @Inject constructor(
         _state.value = _state.value.copy(bookId = id)
         return id
     }
+
+    private data class RecognizedDraft(
+        val bitmap: Bitmap,
+        val text: String,
+        val language: SupportedLanguage,
+        val blurry: Boolean,
+        val warning: String?,
+    )
 }
