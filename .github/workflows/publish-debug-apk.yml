@@ -20,6 +20,13 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+        with:
+          # `tools` was removed from the SDK repository and fails the default package list.
+          packages: platform-tools
+      - name: Point Gradle at the SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
       - name: Assemble debug APK
         working-directory: android
         run: ./gradlew :app:assembleDebug --no-daemon

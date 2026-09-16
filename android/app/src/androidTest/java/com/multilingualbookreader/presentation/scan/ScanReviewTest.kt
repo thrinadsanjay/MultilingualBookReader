@@ -1,10 +1,11 @@
 package com.multilingualbookreader.presentation.scan
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import com.google.common.truth.Truth.assertThat
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
 import org.junit.Rule
 import org.junit.Test
@@ -25,13 +26,18 @@ class ScanReviewTest {
                     onRead = {},
                     onBack = {},
                     onPickGallery = {},
+                    onImportPdf = {},
                 )
             }
         }
         composeRule.onNodeWithText("Scan Book").assertIsDisplayed()
         composeRule.onNodeWithText("Align the page inside the frame").assertIsDisplayed()
-        composeRule.onNodeWithText("Capture page").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Capture page").assertIsDisplayed().assertIsEnabled()
         composeRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+        composeRule.onNodeWithText("Import PDF instead").assertIsDisplayed()
+        composeRule.onNodeWithText("Single Page").assertIsDisplayed()
+        composeRule.onNodeWithText("Auto Crop").assertIsDisplayed()
+        composeRule.onNodeWithText("High Quality").assertIsDisplayed()
     }
 
     @Test
@@ -43,6 +49,7 @@ class ScanReviewTest {
                     cameraGranted = false,
                     onCapture = {},
                     onPickGallery = {},
+                    onImportPdf = {},
                     onRequestCamera = {},
                     onTextChange = {},
                     onSave = {},
@@ -52,10 +59,10 @@ class ScanReviewTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Scan a page with the camera, or pick a photo from your gallery.").assertIsDisplayed()
+        composeRule.onNodeWithText("Camera access is needed to scan a page.").assertIsDisplayed()
         composeRule.onNodeWithText("Allow camera").assertIsDisplayed()
         composeRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
-        assertThat(composeRule.onAllNodesWithText("Align the page inside the frame").fetchSemanticsNodes()).isEmpty()
-        assertThat(composeRule.onAllNodesWithText("Capture page").fetchSemanticsNodes()).isEmpty()
+        composeRule.onNodeWithText("Import PDF instead").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Capture page").assertIsDisplayed().assertIsNotEnabled()
     }
 }

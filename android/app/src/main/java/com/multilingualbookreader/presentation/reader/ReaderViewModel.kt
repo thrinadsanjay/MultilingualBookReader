@@ -22,8 +22,11 @@ import com.multilingualbookreader.text.SentenceSegmenter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -53,6 +56,7 @@ class ReaderViewModel @Inject constructor(
 ) : ViewModel() {
     private val _ui = MutableStateFlow(ReaderUiState())
     val ui: StateFlow<ReaderUiState> = _ui
+    private val loadedBookId = MutableStateFlow<String?>(null)
 
     init {
         viewModelScope.launch {
@@ -63,22 +67,41 @@ class ReaderViewModel @Inject constructor(
             val profile = selectedId?.let { voices.get(it) } ?: defaultStandardVoice()
             _ui.update { it.copy(selectedVoice = profile) }
         }
+        viewModelScope.launch {
+            loadedBookId.filterNotNull().collectLatest { id ->
+                val saved = progress.get(id)
+                _ui.update {
+                    it.copy(pageIndex = ((saved?.pageNumber ?: 1) - 1).coerceAtLeast(0))
+                }
+                coroutineScope {
+                    launch {
+                        books.observeBook(id).collect { book -> _ui.update { it.copy(book = book) } }
+                    }
+                    launch {
+                        books.observePages(id).collect { pages ->
+                            _ui.update { current ->
+                                val index = if (pages.isEmpty()) {
+                                    0
+                                } else {
+                                    current.pageIndex.coerceIn(0, pages.lastIndex)
+                                }
+                                current.copy(pages = pages, pageIndex = index)
+                            }
+                        }
+                    }
+                    launch {
+                        bookmarks.observe(id).collect { marks -> _ui.update { it.copy(bookmarks = marks) } }
+                    }
+                    launch {
+                        notes.observe(id).collect { list -> _ui.update { it.copy(notes = list) } }
+                    }
+                }
+            }
+        }
     }
 
     fun load(id: String) {
-        viewModelScope.launch {
-            val book = books.getBook(id)
-            val pages = books.getPages(id)
-            val saved = progress.get(id)
-            val index = ((saved?.pageNumber ?: 1) - 1).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
-            _ui.update { it.copy(book = book, pages = pages, pageIndex = index) }
-        }
-        viewModelScope.launch {
-            bookmarks.observe(id).collect { marks -> _ui.update { it.copy(bookmarks = marks) } }
-        }
-        viewModelScope.launch {
-            notes.observe(id).collect { list -> _ui.update { it.copy(notes = list) } }
-        }
+        loadedBookId.value = id
     }
 
     fun goToPage(index: Int) {

@@ -44,8 +44,10 @@ class CompositeOcrEngine @Inject constructor(
     /** Reads on device and only reaches for the server when the device came back with nothing. */
     private suspend fun deviceFirst(imageBytes: ByteArray, hintLanguage: SupportedLanguage?): OcrResult {
         val local = recognizeLocally(imageBytes, hintLanguage)
-        val askBackend = OcrFallbackPolicy.shouldTryBackend(local?.text, hintLanguage, connectivity.isOnline)
-        val remote = if (askBackend) recognizeRemotely(imageBytes, hintLanguage) else null
+        val inferredHint = hintLanguage
+            ?: SupportedLanguage.TELUGU.takeIf { local?.text?.let(OcrFallbackPolicy::containsTelugu) == true }
+        val askBackend = OcrFallbackPolicy.shouldTryBackend(local?.text, inferredHint, connectivity.isOnline)
+        val remote = if (askBackend) recognizeRemotely(imageBytes, inferredHint) else null
         return pick(local, remote, askBackend)
     }
 

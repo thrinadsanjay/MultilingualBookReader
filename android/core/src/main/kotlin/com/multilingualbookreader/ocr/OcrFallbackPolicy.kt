@@ -20,8 +20,26 @@ object OcrFallbackPolicy {
     ): Boolean = when {
         !online -> false
         localText.isNullOrBlank() -> true
-        else -> hintLanguage == SupportedLanguage.TELUGU
+        hintLanguage == SupportedLanguage.TELUGU -> true
+        containsTelugu(localText) -> true
+        looksUnreliable(localText) -> true
+        else -> false
     }
+
+    fun containsTelugu(text: String): Boolean = text.any { it.code in TELUGU_RANGE }
+
+    /**
+     * ML Kit will still emit *something* for a sideways Telugu page — punctuation, a few Latin
+     * letters, maybe a stray Telugu glyph. That is not a successful read.
+     */
+    fun looksUnreliable(text: String): Boolean {
+        val letters = text.count { it.isLetter() }
+        val symbols = text.count { !it.isLetter() && !it.isWhitespace() && !it.isDigit() }
+        if (letters < 8) return true
+        return symbols * 2 >= letters
+    }
+
+    private val TELUGU_RANGE = 0x0C00..0x0C7F
 
     /**
      * Picks the attempt that actually produced text. A failed round trip must never discard text

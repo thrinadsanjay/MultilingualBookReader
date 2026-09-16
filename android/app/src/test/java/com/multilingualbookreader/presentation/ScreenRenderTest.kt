@@ -185,6 +185,23 @@ class ScreenRenderTest {
     }
 
     @Test
+    fun scanCaptureChromeDark() = render("scan-capture-chrome-dark", dark = true) {
+        ScanScreen(
+            state = ScanUiState(showTips = true, highQuality = true, autoCrop = true),
+            cameraGranted = false,
+            onCapture = {},
+            onPickGallery = {},
+            onImportPdf = {},
+            onRequestCamera = {},
+            onTextChange = {},
+            onSave = {},
+            onRetake = {},
+            onRead = {},
+            onBack = {},
+        )
+    }
+
+    @Test
     fun libraryDark() = render("library-dark", dark = true) {
         LibraryScreen(books = listOf(sampleBook), onOpen = {}, onBack = {}, onDelete = {})
     }
