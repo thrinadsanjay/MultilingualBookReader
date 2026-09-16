@@ -62,11 +62,10 @@ fun ServerScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BookReaderCard {
-                Text("Telugu needs a server", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                Text("Optional reading server", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "English and Hindi are read on this phone. Telugu has no on-device model, so those " +
-                        "pages are sent to your own server. Leave this empty to stay fully offline.",
+                    "English, Hindi, and Telugu are read on this phone. A server is optional: run the Docker backend from this project on a computer, then paste that address here (for example http://192.168.1.20:8080 on your Wi‑Fi). Leave this empty to stay fully on-device.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = brand.textSecondary,
                 )

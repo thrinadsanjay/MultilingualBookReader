@@ -85,4 +85,31 @@ class ScanScreenTest {
         composeRule.onNodeWithContentDescription("Page 1").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Page 2").assertIsDisplayed()
     }
+
+    @Test
+    fun reviewActionsStayOnScreenWithoutScrolling() {
+        val page = android.graphics.Bitmap.createBitmap(48, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        composeRule.setContent {
+            BookReaderTheme(darkTheme = true, highContrast = false, fontScale = 1.0f) {
+                ScanScreen(
+                    state = ScanUiState(
+                        drafts = listOf(PageDraft.from(page)),
+                        preview = page,
+                        ocrText = "Ogso",
+                        error = "The text still looks off.",
+                    ),
+                    onCapture = {},
+                    onTextChange = {},
+                    onSave = {},
+                    onRetake = {},
+                    onRead = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Use Page").assertIsDisplayed()
+        composeRule.onNodeWithText("Adjust photo").assertIsDisplayed()
+        composeRule.onNodeWithText("Reading server settings").assertIsDisplayed()
+        composeRule.onNodeWithText("Edit the text if something looks wrong").assertIsDisplayed()
+    }
 }

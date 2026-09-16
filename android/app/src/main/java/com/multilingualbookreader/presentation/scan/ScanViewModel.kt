@@ -343,8 +343,8 @@ class ScanViewModel @Inject constructor(
         val result: OcrResult = ocr.recognize(jpeg)
         val warning = when {
             result.text.isBlank() -> "We could not read any text. Rotate until the lines read left to right, then try again."
-            OcrFallbackPolicy.looksUnreliable(result.text) ->
-                "The text still looks off. Rotate the photo until the writing is upright. Telugu pages need the reading server in Settings."
+                OcrFallbackPolicy.looksUnreliable(result.text) ->
+                    "The text still looks off. Rotate until the writing is upright, then detect again. A reading server in Settings can help on difficult Telugu pages."
             else -> null
         }
         return RecognizedDraft(bitmap, result.text, result.language, PageImageProcessor.blurScore(bitmap) < 6.0, warning)

@@ -12,7 +12,7 @@ enum class OcrSource { LOCAL, BACKEND }
  * losing it when that backend was unreachable.
  */
 object OcrFallbackPolicy {
-    /** Telugu has no on-device model, so it is the one script that always needs the server. */
+    /** Tries the server when the on-device read still looks like garbage or empty. */
     fun shouldTryBackend(
         localText: String?,
         hintLanguage: SupportedLanguage?,
@@ -20,6 +20,7 @@ object OcrFallbackPolicy {
     ): Boolean = when {
         !online -> false
         localText.isNullOrBlank() -> true
+        containsTelugu(localText) && !looksUnreliable(localText) -> false
         hintLanguage == SupportedLanguage.TELUGU -> true
         containsTelugu(localText) -> true
         looksUnreliable(localText) -> true
@@ -29,13 +30,34 @@ object OcrFallbackPolicy {
     fun containsTelugu(text: String): Boolean = text.any { it.code in TELUGU_RANGE }
 
     /**
+     * Picks the read that actually looks like a page of writing. Telugu from the on-device
+     * Tesseract model beats ML Kit garbage even when both returned *something*.
+     */
+    fun better(first: String?, second: String?): String? {
+        val candidates = listOfNotNull(first, second).filter { it.isNotBlank() }
+        if (candidates.isEmpty()) return null
+        return candidates.maxWith(
+            compareBy<String> { containsTelugu(it) && !looksUnreliable(it) }
+                .thenBy { !looksUnreliable(it) }
+                .thenBy { containsTelugu(it) }
+                .thenBy { it.length },
+        )
+    }
+
+    /**
      * ML Kit will still emit *something* for a sideways Telugu page — punctuation, a few Latin
      * letters, maybe a stray Telugu glyph. That is not a successful read.
      */
     fun looksUnreliable(text: String): Boolean {
-        val letters = text.count { it.isLetter() }
-        val symbols = text.count { !it.isLetter() && !it.isWhitespace() && !it.isDigit() }
+        val telugu = text.count { it.code in TELUGU_RANGE }
+        val letters = text.count { it.isLetter() || it.code in TELUGU_RANGE }
+        val symbols = text.count { !it.isLetter() && !it.isWhitespace() && !it.isDigit() && it.code !in TELUGU_RANGE }
+        val words = text.split(Regex("[\\s\\d\\p{Punct}]+")).count { token ->
+            token.length >= 3 && token.any { it.isLetter() || it.code in TELUGU_RANGE }
+        }
+        if (telugu >= 12 && symbols * 2 < telugu) return false
         if (letters < 8) return true
+        if (words < 4) return true
         return symbols * 2 >= letters
     }
 
@@ -52,10 +74,13 @@ object OcrFallbackPolicy {
         localText: String?,
         backendText: String?,
         backendAttempted: Boolean,
-    ): OcrSource? = when {
-        !backendText.isNullOrBlank() -> OcrSource.BACKEND
-        !localText.isNullOrBlank() -> OcrSource.LOCAL
-        localText != null && !backendAttempted -> OcrSource.LOCAL
-        else -> null
+    ): OcrSource? {
+        val winner = better(localText, backendText)
+        return when {
+            winner != null && winner == backendText -> OcrSource.BACKEND
+            winner != null -> OcrSource.LOCAL
+            localText != null && !backendAttempted -> OcrSource.LOCAL
+            else -> null
+        }
     }
 }
