@@ -15,6 +15,7 @@ import javax.inject.Singleton
 @Singleton
 class CompositeOcrEngine @Inject constructor(
     private val mlKit: MlKitOcrEngine,
+    private val tesseract: TesseractOcrEngine,
     private val backend: BackendOcrEngine,
     private val settings: SettingsRepository,
     private val connectivity: ConnectivityObserver,
@@ -29,7 +30,11 @@ class CompositeOcrEngine @Inject constructor(
     override suspend fun recognize(imageBytes: ByteArray, hintLanguage: SupportedLanguage?): OcrResult {
         val result = when (settings.get().ocrRoute) {
             OcrRoute.CLOUD -> cloudFirst(imageBytes, hintLanguage)
-            OcrRoute.ON_DEVICE -> mlKit.recognize(imageBytes, hintLanguage)
+            OcrRoute.ON_DEVICE -> {
+                val local = recognizeLocally(imageBytes, hintLanguage)
+                val tess = recognizeWithTesseract(imageBytes, hintLanguage, local?.text)
+                pickOnDevice(local, tess) ?: local ?: error("This page could not be read.")
+            }
             OcrRoute.AUTO -> deviceFirst(imageBytes, hintLanguage)
         }
         val cleaned = textProcessor.clean(result.text, result.language)
@@ -41,21 +46,45 @@ class CompositeOcrEngine @Inject constructor(
         return result.copy(text = cleaned, language = language)
     }
 
-    /** Reads on device and only reaches for the server when the device came back with nothing. */
+    /** Reads on the phone first (ML Kit, then Tesseract for Telugu) and only then the server. */
     private suspend fun deviceFirst(imageBytes: ByteArray, hintLanguage: SupportedLanguage?): OcrResult {
         val local = recognizeLocally(imageBytes, hintLanguage)
+        val tess = recognizeWithTesseract(imageBytes, hintLanguage, local?.text)
+        val onDevice = pickOnDevice(local, tess)
         val inferredHint = hintLanguage
-            ?: SupportedLanguage.TELUGU.takeIf { local?.text?.let(OcrFallbackPolicy::containsTelugu) == true }
-        val askBackend = OcrFallbackPolicy.shouldTryBackend(local?.text, inferredHint, connectivity.isOnline)
+            ?: SupportedLanguage.TELUGU.takeIf { onDevice?.text?.let(OcrFallbackPolicy::containsTelugu) == true }
+        val askBackend = OcrFallbackPolicy.shouldTryBackend(onDevice?.text, inferredHint, connectivity.isOnline)
         val remote = if (askBackend) recognizeRemotely(imageBytes, inferredHint) else null
-        return pick(local, remote, askBackend)
+        return pick(onDevice, remote, askBackend)
     }
 
     private suspend fun cloudFirst(imageBytes: ByteArray, hintLanguage: SupportedLanguage?): OcrResult {
         val remote = if (connectivity.isOnline) recognizeRemotely(imageBytes, hintLanguage) else null
-        if (remote != null && remote.text.isNotBlank()) return remote
+        if (remote != null && remote.text.isNotBlank() && !OcrFallbackPolicy.looksUnreliable(remote.text)) return remote
         val local = recognizeLocally(imageBytes, hintLanguage)
-        return pick(local, remote, backendAttempted = connectivity.isOnline)
+        val tess = recognizeWithTesseract(imageBytes, hintLanguage, local?.text)
+        val onDevice = pickOnDevice(local, tess)
+        return pick(onDevice, remote, backendAttempted = connectivity.isOnline)
+    }
+
+    private fun pickOnDevice(mlKit: OcrResult?, tess: OcrResult?): OcrResult? {
+        val winner = OcrFallbackPolicy.better(mlKit?.text, tess?.text) ?: return mlKit ?: tess
+        return listOfNotNull(mlKit, tess).firstOrNull { it.text == winner } ?: mlKit ?: tess
+    }
+
+    private suspend fun recognizeWithTesseract(
+        imageBytes: ByteArray,
+        hintLanguage: SupportedLanguage?,
+        localText: String?,
+    ): OcrResult? {
+        val tryTess = hintLanguage == SupportedLanguage.TELUGU ||
+            localText.isNullOrBlank() ||
+            OcrFallbackPolicy.looksUnreliable(localText) ||
+            OcrFallbackPolicy.containsTelugu(localText)
+        if (!tryTess) return null
+        return runCatching { tesseract.recognize(imageBytes, hintLanguage ?: SupportedLanguage.TELUGU) }
+            .onFailure { AppLog.w("ocr_tesseract_failed") }
+            .getOrNull()
     }
 
     private fun pick(local: OcrResult?, remote: OcrResult?, backendAttempted: Boolean): OcrResult {

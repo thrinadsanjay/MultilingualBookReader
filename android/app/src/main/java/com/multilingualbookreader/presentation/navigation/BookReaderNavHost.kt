@@ -128,6 +128,7 @@ fun BookReaderNavHost() {
                 ScanRoute(
                     onOpenReader = { nav.navigate("reader/$it") { popUpTo(Routes.Home) } },
                     onImportPdf = { nav.navigate(Routes.PdfImport) },
+                    onOpenServer = { nav.navigate(Routes.Server) },
                     onBack = { nav.popBackStack() },
                 )
             }

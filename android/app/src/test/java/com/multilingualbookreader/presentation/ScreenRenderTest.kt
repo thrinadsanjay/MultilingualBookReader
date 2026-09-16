@@ -224,6 +224,28 @@ class ScreenRenderTest {
     }
 
     @Test
+    fun scanReviewFitsButtonsDark() = render("scan-review-buttons-dark", dark = true) {
+        val page = Bitmap.createBitmap(48, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFE8D5B5.toInt()) }
+        ScanScreen(
+            state = ScanUiState(
+                drafts = listOf(PageDraft.from(page)),
+                preview = page,
+                ocrText = "Ogso (380yiogiso)",
+                error = "The text still looks off. Rotate until the writing is upright, then detect again.",
+            ),
+            cameraGranted = false,
+            onCapture = {},
+            onPickGallery = {},
+            onRequestCamera = {},
+            onTextChange = {},
+            onSave = {},
+            onRetake = {},
+            onRead = {},
+            onBack = {},
+        )
+    }
+
+    @Test
     fun libraryDark() = render("library-dark", dark = true) {
         LibraryScreen(books = listOf(sampleBook), onOpen = {}, onBack = {}, onDelete = {})
     }

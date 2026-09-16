@@ -30,8 +30,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 19
-        versionName = "0.3.5"
+        versionCode = 20
+        versionName = "0.3.6"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -166,6 +166,7 @@ dependencies {
     implementation(libs.mlkit.text)
     implementation(libs.mlkit.text.devanagari)
     implementation(libs.mlkit.language)
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
     implementation(libs.pdfbox.android)
 
     testImplementation("androidx.test:core-ktx:1.6.1")

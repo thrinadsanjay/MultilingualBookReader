@@ -22,7 +22,23 @@ class OcrFallbackPolicyTest {
     }
 
     @Test
-    fun teluguAlwaysNeedsTheServerBecauseThereIsNoOnDeviceModel() {
+    fun goodTeluguFromThePhoneDoesNotNeedTheServer() {
+        val tryBackend = OcrFallbackPolicy.shouldTryBackend(
+            localText = "తెలుగు పుస్తకం చదవడం సులభం అని చెబుతారు.",
+            hintLanguage = SupportedLanguage.TELUGU,
+            online = true,
+        )
+        assertThat(tryBackend).isFalse()
+    }
+
+    @Test
+    fun tesseractTeluguBeatsMlKitGarbage() {
+        val winner = OcrFallbackPolicy.better("Ogso (380yiogiso)", "తెలుగు పుస్తకం చదవడం సులభం")
+        assertThat(winner).isEqualTo("తెలుగు పుస్తకం చదవడం సులభం")
+    }
+
+    @Test
+    fun garbledLatinWithATeluguHintStillAsksTheServer() {
         val tryBackend = OcrFallbackPolicy.shouldTryBackend(
             localText = "garbled latin guess",
             hintLanguage = SupportedLanguage.TELUGU,

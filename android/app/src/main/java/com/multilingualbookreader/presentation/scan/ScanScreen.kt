@@ -25,15 +25,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.RotateRight
@@ -85,6 +84,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.presentation.components.LargeButton
+import com.multilingualbookreader.presentation.components.PrimaryButton
+import com.multilingualbookreader.presentation.components.SecondaryButton
 import com.multilingualbookreader.presentation.theme.LocalBrand
 import com.multilingualbookreader.presentation.theme.darkBrand
 import java.io.File
@@ -95,6 +96,7 @@ import kotlin.math.min
 fun ScanRoute(
     onOpenReader: (String) -> Unit,
     onImportPdf: () -> Unit,
+    onOpenServer: () -> Unit,
     onBack: () -> Unit,
     viewModel: ScanViewModel = hiltViewModel(),
 ) {
@@ -148,6 +150,7 @@ fun ScanRoute(
         onTextChange = viewModel::updateText,
         onSave = viewModel::savePage,
         onRetake = viewModel::retake,
+        onOpenServer = onOpenServer,
         onRead = { state.bookId?.let(onOpenReader) },
         onBack = onBack,
     )
@@ -162,6 +165,7 @@ fun ScanScreen(
     onRetake: () -> Unit,
     onRead: () -> Unit,
     onBack: () -> Unit,
+    onOpenServer: () -> Unit = {},
     cameraGranted: Boolean = true,
     onPickGallery: () -> Unit = {},
     onImportPdf: () -> Unit = {},
@@ -197,6 +201,7 @@ fun ScanScreen(
                     onTextChange = onTextChange,
                     onSave = onSave,
                     onRetake = onRetake,
+                    onOpenServer = onOpenServer,
                     onBack = onBack,
                 )
                 state.drafts.isNotEmpty() -> PreparePane(
@@ -520,7 +525,7 @@ private fun TipBanner(showDetail: Boolean, onTips: () -> Unit) {
         if (showDetail) {
             Spacer(Modifier.height(6.dp))
             Text(
-                "After you capture or pick photos, rotate them until the lines read left to right, then detect text. Telugu needs the reading server.",
+                "After you capture or pick photos, rotate them until the lines read left to right, then detect text. Telugu is read on this phone; a reading server is optional for sharper pages.",
                 color = brand.textSecondary,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -753,15 +758,15 @@ private fun ReviewPane(
     onTextChange: (String) -> Unit,
     onSave: () -> Unit,
     onRetake: () -> Unit,
+    onOpenServer: () -> Unit,
     onBack: () -> Unit,
 ) {
     val brand = LocalBrand.current
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Outlined.Close, contentDescription = "Back", tint = brand.textPrimary)
             }
             Text("Scan Book", style = MaterialTheme.typography.titleLarge, color = brand.textPrimary)
@@ -769,21 +774,46 @@ private fun ReviewPane(
         Image(
             bitmap = preview.asImageBitmap(),
             contentDescription = "Captured page",
-            modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)),
+            modifier = Modifier.fillMaxWidth().weight(0.42f).clip(RoundedCornerShape(18.dp)),
             contentScale = ContentScale.Fit,
         )
-        Text("Detected language: $language", color = brand.textPrimary)
-        if (blurry) Text("This photo looks a little blurry. You can retake it for better reading.", color = brand.textSecondary)
-        error?.let { Text(it, color = brand.danger) }
-        if (busy) CircularProgressIndicator(color = brand.accent)
+        Spacer(Modifier.height(8.dp))
+        Text("Detected language: $language", color = brand.textPrimary, style = MaterialTheme.typography.bodyMedium)
+        if (blurry) {
+            Text(
+                "This photo looks a little blurry. You can retake it for better reading.",
+                color = brand.textSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+            )
+        }
+        error?.let {
+            Text(it, color = brand.danger, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+        }
+        if (busy) CircularProgressIndicator(color = brand.accent, modifier = Modifier.padding(vertical = 4.dp))
         OutlinedTextField(
             value = text,
             onValueChange = onTextChange,
-            modifier = Modifier.fillMaxWidth().height(240.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 72.dp).padding(top = 6.dp),
             enabled = !busy,
             label = { Text("Edit the text if something looks wrong") },
         )
-        LargeButton("Use Page", onSave, enabled = !busy)
-        LargeButton(if (remaining > 0) "Adjust photo" else "Retake", onRetake, tonal = true, enabled = !busy)
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            SecondaryButton("Reading server settings", onOpenServer, enabled = !busy)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            SecondaryButton(
+                if (remaining > 0) "Adjust photo" else "Retake",
+                onRetake,
+                modifier = Modifier.weight(1f),
+                enabled = !busy,
+            )
+            PrimaryButton("Use Page", onSave, modifier = Modifier.weight(1f), enabled = !busy)
+        }
     }
 }
