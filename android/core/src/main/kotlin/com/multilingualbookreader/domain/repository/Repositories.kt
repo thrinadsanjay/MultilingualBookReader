@@ -20,6 +20,7 @@ interface BookRepository {
     suspend fun getPage(pageId: String): BookPage?
     suspend fun upsertBook(book: Book)
     suspend fun upsertPage(page: BookPage)
+    suspend fun saveBookPage(book: Book, page: BookPage)
     suspend fun deleteBook(bookId: String)
     suspend fun search(bookId: String, query: String): List<BookPage>
     suspend fun updatePageText(pageId: String, text: String)

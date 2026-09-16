@@ -1,7 +1,9 @@
 package com.multilingualbookreader.data.repository
 
+import androidx.room.withTransaction
 import com.multilingualbookreader.database.BookDao
 import com.multilingualbookreader.database.BookPageDao
+import com.multilingualbookreader.database.BookReaderDatabase
 import com.multilingualbookreader.database.ProgressDao
 import com.multilingualbookreader.database.toDomain
 import com.multilingualbookreader.database.toEntity
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class BookRepositoryImpl @Inject constructor(
+    private val db: BookReaderDatabase,
     private val bookDao: BookDao,
     private val pageDao: BookPageDao,
     private val progressDao: ProgressDao,
@@ -54,6 +57,12 @@ class BookRepositoryImpl @Inject constructor(
     override suspend fun getPage(pageId: String) = pageDao.getPage(pageId)?.toDomain()
     override suspend fun upsertBook(book: Book) = bookDao.upsert(book.toEntity())
     override suspend fun upsertPage(page: BookPage) = pageDao.upsert(page.toEntity())
+    override suspend fun saveBookPage(book: Book, page: BookPage) {
+        db.withTransaction {
+            bookDao.upsert(book.toEntity())
+            pageDao.upsert(page.toEntity())
+        }
+    }
     override suspend fun deleteBook(bookId: String) {
         pageDao.deleteForBook(bookId)
         bookDao.delete(bookId)

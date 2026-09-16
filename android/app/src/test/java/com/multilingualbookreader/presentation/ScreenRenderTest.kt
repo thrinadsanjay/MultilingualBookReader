@@ -335,6 +335,26 @@ class ScreenRenderTest {
         ReaderScreenPreview(ReaderUiState(book = sampleBook.book, pages = emptyList()))
     }
 
+    @Test
+    fun readerShowsSavedScanText() = render("reader-saved-scan-dark", dark = true) {
+        ReaderScreenPreview(
+            ReaderUiState(
+                book = sampleBook.book.copy(title = "Scanned book", sourceType = BookSource.CAMERA_SCAN),
+                pages = listOf(
+                    BookPage(
+                        id = "page-1",
+                        bookId = sampleBook.book.id,
+                        pageNumber = 1,
+                        imagePath = "/pages/1.jpg",
+                        text = "నమస్కారం\nThis page was saved from Scan Book.",
+                        language = SupportedLanguage.TELUGU,
+                        processingStatus = ProcessingStatus.COMPLETED,
+                    ),
+                ),
+            ),
+        )
+    }
+
     @Composable
     private fun ReaderScreenPreview(state: ReaderUiState) {
         ReaderScreen(

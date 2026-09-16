@@ -63,8 +63,17 @@ object PageImageProcessor {
         return if (enhance) enhanceContrast(cropped) else cropped
     }
 
-    fun toJpeg(bitmap: Bitmap, quality: Int = 90): ByteArray =
-        ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, this) }.toByteArray()
+    fun toJpeg(bitmap: Bitmap, quality: Int = 90): ByteArray {
+        if (bitmap.isRecycled) return ByteArray(0)
+        val source = if (bitmap.config == Bitmap.Config.HARDWARE) {
+            bitmap.copy(Bitmap.Config.ARGB_8888, false) ?: return ByteArray(0)
+        } else {
+            bitmap
+        }
+        return ByteArrayOutputStream().apply {
+            source.compress(Bitmap.CompressFormat.JPEG, quality, this)
+        }.toByteArray()
+    }
 
     /**
      * Printed lines are horizontal. A gallery photo of a book is often stored sideways; EXIF does
