@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.multilingualbookreader.camera.PageImageProcessor
 import com.multilingualbookreader.domain.engine.OcrEngine
 import com.multilingualbookreader.domain.model.Book
+import com.multilingualbookreader.domain.model.BookLooks
 import com.multilingualbookreader.domain.model.BookPage
 import com.multilingualbookreader.domain.model.BookSource
 import com.multilingualbookreader.domain.model.OcrResult
@@ -79,6 +80,9 @@ data class ScanUiState(
     val highQuality: Boolean = false,
     val showTips: Boolean = false,
     val openReaderId: String? = null,
+    val bookTitle: String = "",
+    val askForTitle: Boolean = false,
+    val pendingOpenReaderId: String? = null,
 )
 
 @HiltViewModel
@@ -97,10 +101,12 @@ class ScanViewModel @Inject constructor(
         val existingId = initialBookId
         if (existingId != null) {
             viewModelScope.launch {
+                val book = books.getBook(existingId)
                 val count = books.getPages(existingId).size
                 _state.value = _state.value.copy(
                     pageCount = count,
                     mode = ScanCaptureMode.MULTIPLE,
+                    bookTitle = book?.title.orEmpty(),
                 )
             }
         }
@@ -138,6 +144,35 @@ class ScanViewModel @Inject constructor(
 
     fun consumeOpenReader() {
         _state.value = _state.value.copy(openReaderId = null)
+    }
+
+    fun setBookTitle(title: String) {
+        _state.value = _state.value.copy(bookTitle = title)
+    }
+
+    fun confirmTitle(title: String) {
+        viewModelScope.launch {
+            val current = _state.value
+            val id = current.bookId ?: return@launch
+            val name = title.trim().ifBlank { "Untitled book" }
+            val book = books.getBook(id) ?: return@launch
+            books.upsertBook(book.copy(title = name, updatedAt = System.currentTimeMillis()))
+            _state.value = current.copy(
+                bookTitle = name,
+                askForTitle = false,
+                pendingOpenReaderId = null,
+                openReaderId = current.pendingOpenReaderId ?: current.openReaderId,
+            )
+        }
+    }
+
+    fun skipTitle() {
+        val current = _state.value
+        _state.value = current.copy(
+            askForTitle = false,
+            pendingOpenReaderId = null,
+            openReaderId = current.pendingOpenReaderId ?: current.openReaderId,
+        )
     }
 
     fun onGalleryPicked(uri: Uri) = onGalleryPicked(listOf(uri))
@@ -228,11 +263,13 @@ class ScanViewModel @Inject constructor(
                         bitmap = recognized.bitmap,
                         text = recognized.text,
                         language = recognized.language,
+                        titleHint = start.bookTitle,
                     )
                     }
                     bookId = persisted.first
                     pageCount = persisted.second
                 }
+                val needsName = start.bookId == null && start.bookTitle.isBlank()
                 _state.value = start.copy(
                     bookId = bookId,
                     pageCount = pageCount,
@@ -244,7 +281,9 @@ class ScanViewModel @Inject constructor(
                     busyMessage = null,
                     error = null,
                     blurry = false,
-                    openReaderId = bookId.takeIf { start.mode == ScanCaptureMode.SINGLE },
+                    askForTitle = needsName,
+                    pendingOpenReaderId = bookId.takeIf { needsName && start.mode == ScanCaptureMode.SINGLE },
+                    openReaderId = bookId.takeIf { !needsName && start.mode == ScanCaptureMode.SINGLE },
                 )
             }.onFailure(::failRead)
         }
@@ -267,10 +306,12 @@ class ScanViewModel @Inject constructor(
                         bitmap = bitmap,
                         text = current.ocrText,
                         language = current.language,
+                        titleHint = current.bookTitle,
                     )
                 }
             }.onSuccess { (bookId, pageNumber) ->
                 val remaining = current.drafts.filterIndexed { index, _ -> index != current.selectedDraftIndex }
+                val needsName = current.bookId == null && current.bookTitle.isBlank()
                 _state.value = current.copy(
                     bookId = bookId,
                     pageCount = pageNumber,
@@ -282,7 +323,9 @@ class ScanViewModel @Inject constructor(
                     busyMessage = null,
                     error = null,
                     blurry = false,
-                    openReaderId = bookId.takeIf { current.mode == ScanCaptureMode.SINGLE && remaining.isEmpty() },
+                    askForTitle = needsName,
+                    pendingOpenReaderId = bookId.takeIf { needsName && current.mode == ScanCaptureMode.SINGLE && remaining.isEmpty() },
+                    openReaderId = bookId.takeIf { !needsName && current.mode == ScanCaptureMode.SINGLE && remaining.isEmpty() },
                 )
             }.onFailure { error ->
                 _state.value = current.copy(
@@ -376,6 +419,7 @@ class ScanViewModel @Inject constructor(
         bitmap: Bitmap,
         text: String,
         language: SupportedLanguage,
+        titleHint: String,
     ): Pair<String, Int> {
         val id = bookId ?: UUID.randomUUID().toString()
         val existing = books.getBook(id)
@@ -386,7 +430,7 @@ class ScanViewModel @Inject constructor(
         val now = System.currentTimeMillis()
         val book = (existing ?: Book(
             id = id,
-            title = "Scanned book",
+            title = titleHint.trim().ifBlank { "Scanned book" },
             author = null,
             coverPath = null,
             sourceType = BookSource.CAMERA_SCAN,
@@ -394,6 +438,7 @@ class ScanViewModel @Inject constructor(
             totalPages = 0,
             createdAt = now,
             updatedAt = now,
+            color = BookLooks.colorFor(id),
         )).copy(
             totalPages = pageNumber,
             coverPath = existing?.coverPath ?: imagePath,

@@ -4,6 +4,7 @@ import com.multilingualbookreader.domain.model.AudioSegment
 import com.multilingualbookreader.domain.model.AudioStatus
 import com.multilingualbookreader.domain.model.Book
 import com.multilingualbookreader.domain.model.BookPage
+import com.multilingualbookreader.domain.model.BookPriority
 import com.multilingualbookreader.domain.model.BookSource
 import com.multilingualbookreader.domain.model.Bookmark
 import com.multilingualbookreader.domain.model.Note
@@ -23,6 +24,11 @@ fun BookEntity.toDomain() = Book(
     totalPages = totalPages,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    tags = tags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+    priority = BookPriority.fromStored(priority),
+    color = color,
+    genre = genre,
+    favorite = favorite,
 )
 
 fun Book.toEntity() = BookEntity(
@@ -35,6 +41,11 @@ fun Book.toEntity() = BookEntity(
     totalPages = totalPages,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    tags = tags.joinToString(","),
+    priority = priority.name,
+    color = color,
+    genre = genre,
+    favorite = favorite,
 )
 
 fun BookPageEntity.toDomain() = BookPage(

@@ -2,6 +2,8 @@ package com.multilingualbookreader.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -14,7 +16,7 @@ import androidx.room.RoomDatabase
         BookmarkEntity::class,
         NoteEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class BookReaderDatabase : RoomDatabase() {
@@ -26,4 +28,16 @@ abstract class BookReaderDatabase : RoomDatabase() {
     abstract fun voiceDao(): VoiceProfileDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun noteDao(): NoteDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE books ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE books ADD COLUMN priority TEXT NOT NULL DEFAULT 'NORMAL'")
+                db.execSQL("ALTER TABLE books ADD COLUMN color TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE books ADD COLUMN genre TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE books ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+    }
 }

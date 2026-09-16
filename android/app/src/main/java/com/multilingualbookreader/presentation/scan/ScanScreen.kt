@@ -154,6 +154,15 @@ fun ScanRoute(
         onRead = { state.bookId?.let(onOpenReader) },
         onBack = onBack,
     )
+    if (state.askForTitle) {
+        com.multilingualbookreader.presentation.library.NameBookDialog(
+            title = "Name this book",
+            initial = state.bookTitle,
+            confirm = "Save name",
+            onConfirm = viewModel::confirmTitle,
+            onDismiss = viewModel::skipTitle,
+        )
+    }
 }
 
 @Composable

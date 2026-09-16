@@ -51,6 +51,31 @@ class BookDaoTest {
         assertThat(db.bookDao().getBook("1")?.coverPath).isEqualTo("/pages/1.jpg")
     }
 
+    @Test
+    fun libraryFieldsSurviveAnUpdate() = runBlocking {
+        db.bookDao().upsert(
+            sampleBook().copy(
+                tags = "Telugu,Temple",
+                priority = "HIGH",
+                color = "#6FBFA8",
+                genre = "Religion",
+                favorite = true,
+            ),
+        )
+        db.bookDao().upsert(sampleBook(totalPages = 3, coverPath = "/pages/1.jpg", updatedAt = 4).copy(
+            tags = "Telugu,Temple",
+            priority = "HIGH",
+            color = "#6FBFA8",
+            genre = "Religion",
+            favorite = true,
+        ))
+        val loaded = db.bookDao().getBook("1")
+        assertThat(loaded?.tags).isEqualTo("Telugu,Temple")
+        assertThat(loaded?.priority).isEqualTo("HIGH")
+        assertThat(loaded?.genre).isEqualTo("Religion")
+        assertThat(loaded?.favorite).isTrue()
+    }
+
     private fun sampleBook(
         totalPages: Int = 12,
         coverPath: String? = null,

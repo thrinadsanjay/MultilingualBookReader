@@ -10,6 +10,11 @@ data class Book(
     val totalPages: Int,
     val createdAt: Long,
     val updatedAt: Long,
+    val tags: List<String> = emptyList(),
+    val priority: BookPriority = BookPriority.NORMAL,
+    val color: String = "",
+    val genre: String = "",
+    val favorite: Boolean = false,
 )
 
 data class BookPage(

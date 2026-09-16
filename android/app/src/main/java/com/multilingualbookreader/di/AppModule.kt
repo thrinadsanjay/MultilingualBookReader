@@ -68,6 +68,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): BookReaderDatabase =
         Room.databaseBuilder(context, BookReaderDatabase::class.java, "book-reader.db")
+            .addMigrations(BookReaderDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
 

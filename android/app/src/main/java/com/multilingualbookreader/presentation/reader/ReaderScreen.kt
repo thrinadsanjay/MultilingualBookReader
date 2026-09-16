@@ -111,6 +111,7 @@ fun ReaderRoute(
         onBookmark = viewModel::bookmark,
         onNoteDraft = viewModel::updateNoteDraft,
         onSaveNote = viewModel::saveNote,
+        onRename = viewModel::rename,
     )
 }
 
@@ -136,11 +137,13 @@ fun ReaderScreen(
     onSaveNote: () -> Unit,
     onAddPages: () -> Unit = {},
     onGoToPage: (Int) -> Unit = {},
+    onRename: (String) -> Unit = {},
 ) {
     val brand = LocalBrand.current
     val page = state.pages.getOrNull(state.pageIndex)
     var menuOpen by remember { mutableStateOf(false) }
     var noteOpen by remember { mutableStateOf(false) }
+    var renameOpen by remember { mutableStateOf(false) }
     var preferImage by remember { mutableStateOf(true) }
     val pageCount = state.pages.size
     val pagerState = rememberPagerState(
@@ -186,6 +189,7 @@ fun ReaderScreen(
                             hasImage = !page?.imagePath.isNullOrBlank(),
                             preferImage = preferImage,
                             onAddPages = { menuOpen = false; onAddPages() },
+                            onRename = { menuOpen = false; renameOpen = true },
                             onAddNote = { menuOpen = false; noteOpen = true },
                             onBookmark = { menuOpen = false; onBookmark() },
                             onSearch = { menuOpen = false; onSearch() },
@@ -275,6 +279,18 @@ fun ReaderScreen(
             )
         }
     }
+    if (renameOpen) {
+        com.multilingualbookreader.presentation.library.NameBookDialog(
+            title = "Rename book",
+            initial = state.book?.title.orEmpty(),
+            confirm = "Save",
+            onConfirm = {
+                onRename(it)
+                renameOpen = false
+            },
+            onDismiss = { renameOpen = false },
+        )
+    }
     if (noteOpen) {
         NoteDialog(
             state = state,
@@ -295,6 +311,7 @@ private fun ReaderOverflowMenu(
     hasImage: Boolean,
     preferImage: Boolean,
     onAddPages: () -> Unit,
+    onRename: () -> Unit,
     onAddNote: () -> Unit,
     onBookmark: () -> Unit,
     onSearch: () -> Unit,
@@ -312,6 +329,10 @@ private fun ReaderOverflowMenu(
             text = { Text("Add pages") },
             onClick = onAddPages,
             leadingIcon = { Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = null) },
+        )
+        DropdownMenuItem(
+            text = { Text("Rename book") },
+            onClick = onRename,
         )
         DropdownMenuItem(
             text = { Text("Add a note") },
