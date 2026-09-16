@@ -20,6 +20,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default install list still includes the retired `tools` package.
+          packages: platform-tools
       - name: Assemble debug APK
         working-directory: android
         run: ./gradlew :app:assembleDebug --no-daemon
