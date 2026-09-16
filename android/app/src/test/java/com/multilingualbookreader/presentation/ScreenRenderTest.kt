@@ -264,6 +264,8 @@ class ScreenRenderTest {
                         id = "book-2",
                         title = "యథాతథము",
                         sourceType = BookSource.CAMERA_SCAN,
+                        language = SupportedLanguage.TELUGU,
+                        totalPages = 2,
                         tags = listOf("Telugu", "Temple"),
                         priority = BookPriority.HIGH,
                         color = "#6FBFA8",
