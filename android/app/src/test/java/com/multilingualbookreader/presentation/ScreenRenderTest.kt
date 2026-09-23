@@ -40,6 +40,7 @@ import com.multilingualbookreader.presentation.settings.SettingsScreen
 import com.multilingualbookreader.presentation.settings.UpdatesScreen
 import com.multilingualbookreader.presentation.theme.BookReaderTheme
 import com.multilingualbookreader.presentation.voice.VoiceScreen
+import com.multilingualbookreader.presentation.voice.VoiceTestScreen
 import com.multilingualbookreader.presentation.voice.VoiceUiState
 import com.multilingualbookreader.update.AvailableUpdate
 import com.multilingualbookreader.update.InstallChannel
@@ -305,6 +306,22 @@ class ScreenRenderTest {
             onTest = {},
             onBack = {},
             showBack = false,
+        )
+    }
+
+    @Test
+    fun voiceTestDark() = render("voice-test-dark", dark = true) {
+        VoiceTestScreen(
+            message = "Playing English with Standard voice. Listen and decide if it sounds natural.",
+            english = "Welcome to my book reader.",
+            hindi = "यह मेरी किताब है।",
+            telugu = "ఇది నా పుస్తకం.",
+            onEnglish = {},
+            onHindi = {},
+            onTelugu = {},
+            onPlay = { _, _ -> },
+            onBack = {},
+            playingLanguage = SupportedLanguage.ENGLISH,
         )
     }
 

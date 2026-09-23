@@ -77,7 +77,7 @@ class ReaderLayoutTest {
             }
         }
         composeRule.onNodeWithText("యథాతథము").assertIsDisplayed()
-        composeRule.onNodeWithText("1  /  1").assertIsDisplayed()
+        composeRule.onNodeWithText("1  /  1 · Standard voice").assertIsDisplayed()
         composeRule.onAllNodesWithContentDescription("Add pages")[0].assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Previous page").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("More options").performClick()

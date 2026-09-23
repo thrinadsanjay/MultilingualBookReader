@@ -36,6 +36,8 @@ import com.multilingualbookreader.update.GitHubReleaseApi
 import com.multilingualbookreader.ocr.CompositeOcrEngine
 import com.multilingualbookreader.text.DefaultTextProcessor
 import com.multilingualbookreader.text.SentenceSegmenter
+import com.multilingualbookreader.audio.MediaSpeechPreviewPlayer
+import com.multilingualbookreader.audio.SpeechPreviewPlayer
 import com.multilingualbookreader.tts.CompositeTtsEngine
 import com.multilingualbookreader.voice.BackendVoiceCloningEngine
 import com.multilingualbookreader.data.repository.AudioCacheRepositoryImpl
@@ -208,4 +210,5 @@ abstract class BindingsModule {
     @Binds @Singleton abstract fun ocr(impl: CompositeOcrEngine): OcrEngine
     @Binds @Singleton abstract fun tts(impl: CompositeTtsEngine): TextToSpeechEngine
     @Binds @Singleton abstract fun voice(impl: BackendVoiceCloningEngine): VoiceCloningEngine
+    @Binds @Singleton abstract fun speechPreview(impl: MediaSpeechPreviewPlayer): SpeechPreviewPlayer
 }
