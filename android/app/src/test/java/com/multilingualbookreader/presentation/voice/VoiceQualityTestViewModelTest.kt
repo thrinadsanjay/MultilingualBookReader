@@ -32,8 +32,7 @@ class VoiceQualityTestViewModelTest {
             FakeSettings(),
             preview,
         )
-        vm.play("Welcome to my book reader.", SupportedLanguage.ENGLISH, defaultStandardVoice())
-        kotlinx.coroutines.delay(80)
+        vm.playNow("Welcome to my book reader.", SupportedLanguage.ENGLISH, defaultStandardVoice())
         assertThat(preview.played?.decodeToString()).isEqualTo("speech-bytes")
         assertThat(preview.mime).isEqualTo("audio/wav")
         assertThat(vm.ui.value.message).contains("Playing English")

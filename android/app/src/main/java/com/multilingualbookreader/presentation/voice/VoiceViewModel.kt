@@ -152,42 +152,42 @@ class VoiceQualityTestViewModel @Inject constructor(
     fun play(text: String, language: SupportedLanguage, voice: VoiceProfile? = null) {
         playJob?.cancel()
         preview.stop()
-        playJob = viewModelScope.launch {
-            val spoken = text.trim()
-            if (spoken.isEmpty()) {
-                _ui.value = _ui.value.copy(playingLanguage = null, message = "Type something to hear, then play.")
-                return@launch
+        playJob = viewModelScope.launch { playNow(text, language, voice) }
+    }
+
+    internal suspend fun playNow(text: String, language: SupportedLanguage, voice: VoiceProfile? = null) {
+        val spoken = text.trim()
+        if (spoken.isEmpty()) {
+            _ui.value = _ui.value.copy(playingLanguage = null, message = "Type something to hear, then play.")
+            return
+        }
+        val profile = voice ?: resolveVoice(profiles.value, _ui.value.selectedVoiceId)
+        _ui.value = _ui.value.copy(
+            playingLanguage = language,
+            message = "Generating ${language.displayName} with ${profile.name}…",
+        )
+        runCatching {
+            val result = withContext(Dispatchers.IO) {
+                tts.synthesize(spoken, language.bcp47, profile, 1.0f)
             }
-            val profile = voice ?: resolveVoice(profiles.value, _ui.value.selectedVoiceId)
-            _ui.value = _ui.value.copy(
-                playingLanguage = language,
-                message = "Generating ${language.displayName} with ${profile.name}…",
-            )
-            runCatching {
-                val result = withContext(Dispatchers.IO) {
-                    tts.synthesize(spoken, language.bcp47, profile, 1.0f)
-                }
-                if (result.bytes.isEmpty()) error("No speech was generated.")
-                withContext(Dispatchers.Main) {
-                    preview.play(result.bytes, result.mimeType) {
-                        _ui.value = _ui.value.copy(
-                            playingLanguage = null,
-                            message = "Finished ${language.displayName} with ${profile.name}.",
-                        )
-                    }
-                }
-                _ui.value = _ui.value.copy(
-                    playingLanguage = language,
-                    message = "Playing ${language.displayName} with ${profile.name}. Listen and decide if it sounds natural.",
-                )
-            }.onFailure { error ->
-                preview.stop()
+            if (result.bytes.isEmpty()) error("No speech was generated.")
+            preview.play(result.bytes, result.mimeType) {
                 _ui.value = _ui.value.copy(
                     playingLanguage = null,
-                    message = error.message?.takeIf { it.isNotBlank() }
-                        ?: "Could not play speech. If you are offline, only the device voice works.",
+                    message = "Finished ${language.displayName} with ${profile.name}.",
                 )
             }
+            _ui.value = _ui.value.copy(
+                playingLanguage = language,
+                message = "Playing ${language.displayName} with ${profile.name}. Listen and decide if it sounds natural.",
+            )
+        }.onFailure { error ->
+            preview.stop()
+            _ui.value = _ui.value.copy(
+                playingLanguage = null,
+                message = error.message?.takeIf { it.isNotBlank() }
+                    ?: "Could not play speech. If you are offline, only the device voice works.",
+            )
         }
     }
 
