@@ -4,21 +4,26 @@ import android.app.Application
 import android.media.MediaRecorder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.multilingualbookreader.audio.SpeechPreviewPlayer
 import com.multilingualbookreader.domain.engine.TextToSpeechEngine
 import com.multilingualbookreader.domain.engine.VoiceCloningEngine
 import com.multilingualbookreader.domain.model.SupportedLanguage
 import com.multilingualbookreader.domain.model.VoiceProfile
+import com.multilingualbookreader.domain.model.VoiceStatus
 import com.multilingualbookreader.domain.repository.SettingsRepository
 import com.multilingualbookreader.domain.repository.VoiceRepository
 import com.multilingualbookreader.presentation.reader.defaultStandardVoice
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class VoiceUiState(
     val consent: Boolean = false,
@@ -111,27 +116,94 @@ class VoiceViewModel @Inject constructor(
     }
 }
 
+data class VoiceTestUiState(
+    val message: String = "Enter text and play. Compare the standard voice with a voice you recorded.",
+    val selectedVoiceId: String = defaultStandardVoice().id,
+    val playingLanguage: SupportedLanguage? = null,
+)
+
 @HiltViewModel
 class VoiceQualityTestViewModel @Inject constructor(
     application: Application,
     private val tts: TextToSpeechEngine,
     voices: VoiceRepository,
+    private val settings: SettingsRepository,
+    private val preview: SpeechPreviewPlayer,
 ) : AndroidViewModel(application) {
     val profiles = voices.observeProfiles().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    private val _message = MutableStateFlow("Enter text and play. Compare standard and custom voices.")
-    val message: StateFlow<String> = _message
+    private val _ui = MutableStateFlow(VoiceTestUiState())
+    val ui: StateFlow<VoiceTestUiState> = _ui
     val english = MutableStateFlow("Welcome to my book reader.")
     val hindi = MutableStateFlow("यह मेरी किताब है।")
     val telugu = MutableStateFlow("ఇది నా పుస్తకం.")
+    private var playJob: Job? = null
 
-    fun play(text: String, language: SupportedLanguage, voice: VoiceProfile?) {
+    init {
         viewModelScope.launch {
-            val profile = voice ?: defaultStandardVoice()
+            val selectedId = settings.get().selectedVoiceId
+            if (selectedId != null) _ui.value = _ui.value.copy(selectedVoiceId = selectedId)
+        }
+    }
+
+    fun selectVoice(id: String) {
+        _ui.value = _ui.value.copy(selectedVoiceId = id)
+    }
+
+    fun play(text: String, language: SupportedLanguage, voice: VoiceProfile? = null) {
+        playJob?.cancel()
+        preview.stop()
+        playJob = viewModelScope.launch {
+            val spoken = text.trim()
+            if (spoken.isEmpty()) {
+                _ui.value = _ui.value.copy(playingLanguage = null, message = "Type something to hear, then play.")
+                return@launch
+            }
+            val profile = voice ?: resolveVoice(profiles.value, _ui.value.selectedVoiceId)
+            _ui.value = _ui.value.copy(
+                playingLanguage = language,
+                message = "Generating ${language.displayName} with ${profile.name}…",
+            )
             runCatching {
-                tts.synthesize(text, language.bcp47, profile, 1.0f)
-                _message.value = "Generated with ${profile.name} (${profile.provider}). Listen and decide if ${language.displayName} sounds natural. Custom cloned voices are not claimed to match Telugu or Hindi unless the provider lists them as supported."
-            }.onFailure {
-                _message.value = "Could not generate speech. If you are offline, only cached or device voices work."
+                val result = withContext(Dispatchers.IO) {
+                    tts.synthesize(spoken, language.bcp47, profile, 1.0f)
+                }
+                if (result.bytes.isEmpty()) error("No speech was generated.")
+                withContext(Dispatchers.Main) {
+                    preview.play(result.bytes, result.mimeType) {
+                        _ui.value = _ui.value.copy(
+                            playingLanguage = null,
+                            message = "Finished ${language.displayName} with ${profile.name}.",
+                        )
+                    }
+                }
+                _ui.value = _ui.value.copy(
+                    playingLanguage = language,
+                    message = "Playing ${language.displayName} with ${profile.name}. Listen and decide if it sounds natural.",
+                )
+            }.onFailure { error ->
+                preview.stop()
+                _ui.value = _ui.value.copy(
+                    playingLanguage = null,
+                    message = error.message?.takeIf { it.isNotBlank() }
+                        ?: "Could not play speech. If you are offline, only the device voice works.",
+                )
+            }
+        }
+    }
+
+    override fun onCleared() {
+        preview.stop()
+        super.onCleared()
+    }
+
+    companion object {
+        fun resolveVoice(profiles: List<VoiceProfile>, selectedId: String?): VoiceProfile {
+            val selected = selectedId?.let { id -> profiles.firstOrNull { it.id == id } }
+            val usable = selected ?: profiles.firstOrNull { it.status == VoiceStatus.READY }
+            return when {
+                usable == null -> defaultStandardVoice()
+                usable.status != VoiceStatus.READY || usable.provider == "pending-upload" -> defaultStandardVoice()
+                else -> usable
             }
         }
     }
