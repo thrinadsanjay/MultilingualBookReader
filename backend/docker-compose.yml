@@ -3,20 +3,27 @@ services:
     build: .
     image: svara-api:latest
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "8080:8080"
+      # nginx on the same host should be the only public listener.
+      - "${DEPLOY_BIND:-127.0.0.1:8080}:8080"
     environment:
-      # Password the server. The phone sends this as the X-API-Key header.
       API_KEY: ${API_KEY:?set API_KEY in .env before starting}
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env before starting}
-      DEBUG: "false"
-      OCR_PROVIDER: tesseract
-      TTS_PROVIDER: espeak
-      VOICE_PROVIDER: mock
-      DATABASE_URL: sqlite+aiosqlite:////data/svara.db
-      AUDIO_CACHE_DIR: /data/audio
-      VOICE_SAMPLE_DIR: /data/voice
-      RATE_LIMIT: 60/minute
+      DEBUG: ${DEBUG:-false}
+      OCR_PROVIDER: ${OCR_PROVIDER:-tesseract}
+      TTS_PROVIDER: ${TTS_PROVIDER:-espeak}
+      VOICE_PROVIDER: ${VOICE_PROVIDER:-mock}
+      GOOGLE_TTS_API_KEY: ${GOOGLE_TTS_API_KEY:-}
+      TTS_API_KEY: ${TTS_API_KEY:-}
+      OCR_API_KEY: ${OCR_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      VOICE_API_KEY: ${VOICE_API_KEY:-}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/svara.db}
+      AUDIO_CACHE_DIR: ${AUDIO_CACHE_DIR:-/data/audio}
+      VOICE_SAMPLE_DIR: ${VOICE_SAMPLE_DIR:-/data/voice}
+      RATE_LIMIT: ${RATE_LIMIT:-60/minute}
     volumes:
       - svara-data:/data
     healthcheck:

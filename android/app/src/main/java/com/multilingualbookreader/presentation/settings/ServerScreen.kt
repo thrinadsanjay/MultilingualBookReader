@@ -62,10 +62,14 @@ fun ServerScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BookReaderCard {
-                Text("Optional reading server", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                Text("Reading server", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "English, Hindi, and Telugu are read on this phone. A server is optional: run the Docker backend from this project on a computer, then paste that address here (for example http://192.168.1.20:8080 on your Wi‑Fi). Leave this empty to stay fully on-device.",
+                    if (state.usesPackedServer) {
+                        "This build already talks to your reading server. Leave the fields empty unless you want to point at a different host."
+                    } else {
+                        "English, Hindi, and Telugu are read on this phone. A server is optional: run the Docker backend from this project, then paste that HTTPS address here. Leave this empty to stay fully on-device."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = brand.textSecondary,
                 )

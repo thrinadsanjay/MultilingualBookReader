@@ -35,4 +35,18 @@ object BackendUrl {
 
     /** True when the value looks like something we can actually call. */
     fun isValid(input: String): Boolean = normalise(input) != null
+
+    /**
+     * A URL baked into the APK that phones should actually call. Placeholders used for
+     * local emulator builds do not count.
+     */
+    fun isPacked(url: String): Boolean {
+        val host = normalise(url) ?: return false
+        if (host.contains("://api.example.com/")) return false
+        return listOf("10.0.2.2", "localhost", "127.0.0.1").none { host.contains("://$it") }
+    }
+
+    /** Settings override the build-time key; otherwise the packed key is used. */
+    fun resolveApiKey(stored: String?, packed: String): String? =
+        stored?.takeIf { it.isNotBlank() } ?: packed.takeIf { it.isNotBlank() }
 }

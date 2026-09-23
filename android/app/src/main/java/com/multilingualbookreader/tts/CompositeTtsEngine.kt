@@ -1,9 +1,11 @@
 package com.multilingualbookreader.tts
 
+import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.common.AppLog
 import com.multilingualbookreader.domain.engine.TextToSpeechEngine
 import com.multilingualbookreader.domain.model.AudioResult
 import com.multilingualbookreader.domain.model.VoiceProfile
+import com.multilingualbookreader.network.BackendUrl
 import com.multilingualbookreader.network.ConnectivityObserver
 import com.multilingualbookreader.network.EncryptedTokenStore
 import javax.inject.Inject
@@ -25,16 +27,17 @@ class CompositeTtsEngine @Inject constructor(
         voice: VoiceProfile,
         speed: Float,
     ): AudioResult {
+        val serverConfigured = !tokens.serverUrl().isNullOrBlank() || BackendUrl.isPacked(BuildConfig.API_BASE_URL)
         val preferDevice = prefersDeviceSpeech(
             voice = voice,
             online = connectivity.isOnline,
-            serverConfigured = !tokens.serverUrl().isNullOrBlank(),
+            serverConfigured = serverConfigured,
         )
         val result = if (preferDevice) {
             runCatching { android.synthesize(text, language, voice, speed) }
                 .getOrElse {
                     val canAskServer = connectivity.isOnline &&
-                        !tokens.serverUrl().isNullOrBlank() &&
+                        serverConfigured &&
                         !voice.usesOnDeviceRecording()
                     if (canAskServer) backend.synthesize(text, language, voice, speed) else throw it
                 }

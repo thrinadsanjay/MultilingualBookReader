@@ -1,16 +1,17 @@
 package com.multilingualbookreader.network
 
 import android.content.SharedPreferences
+import com.multilingualbookreader.BuildConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 import okhttp3.Interceptor
 import okhttp3.Response
 
 /**
- * Sends every backend call to the server the user configured, with whatever credential they gave.
+ * Sends every backend call to the packed server, or the override saved in Settings.
  *
- * The Retrofit base URL is baked in at build time, but a self-hosted server is only known later,
- * so the request is re-pointed here instead.
+ * Google / ElevenLabs keys never live here. The only credential the APK may carry is the
+ * shared Svara API password so phones do not have to type it.
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -27,7 +28,8 @@ class AuthInterceptor @Inject constructor(
             builder.url(BackendUrl.rewrite(original.url.toString(), server))
         }
 
-        prefs.apiKey()?.takeIf { it.isNotBlank() }?.let { request.header("X-API-Key", it) }
+        BackendUrl.resolveApiKey(prefs.apiKey(), BuildConfig.API_KEY)
+            ?.let { request.header("X-API-Key", it) }
         prefs.accessToken()?.takeIf { it.isNotBlank() }?.let { request.header("Authorization", "Bearer $it") }
         return chain.proceed(request.build())
     }
