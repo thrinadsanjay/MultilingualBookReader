@@ -98,6 +98,7 @@ fun VoiceRoute(
         onPause = viewModel::pauseRecording,
         onResume = viewModel::resumeRecording,
         onRetake = viewModel::retakeLast,
+        onPlayLast = viewModel::playLastSample,
         onCreate = viewModel::create,
         onDelete = viewModel::delete,
         onSelect = viewModel::select,
@@ -120,6 +121,7 @@ fun VoiceScreen(
     onPause: () -> Unit = {},
     onResume: () -> Unit = {},
     onRetake: () -> Unit = {},
+    onPlayLast: () -> Unit = {},
     onCreate: () -> Unit,
     onDelete: (String) -> Unit,
     onSelect: (VoiceProfile) -> Unit,
@@ -257,9 +259,21 @@ fun VoiceScreen(
                 else -> PrimaryButton("Start recording samples", onStart, icon = Icons.Outlined.Mic)
             }
             if (state.samples > 0 && !state.recording) {
+                SecondaryButton("Play last sample", onPlayLast)
                 SecondaryButton("Retake last sample", onRetake)
             }
-            PrimaryButton("Create voice", onCreate, enabled = state.consent && state.samples >= 3)
+            PrimaryButton(
+                if (state.creating) "Creating voice…" else "Create voice",
+                onCreate,
+                enabled = !state.creating && !state.recording,
+            )
+            if (!state.consent || state.samples == 0) {
+                Text(
+                    "Tick the consent box and record at least one sample, then tap Create voice.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = brand.textSecondary,
+                )
+            }
             SecondaryButton("Compare voices", onTest)
             state.message?.let { Text(it, color = brand.textSecondary) }
             state.error?.let { Text(it, color = brand.danger) }
