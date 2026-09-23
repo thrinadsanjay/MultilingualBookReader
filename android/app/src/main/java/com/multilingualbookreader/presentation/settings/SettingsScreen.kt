@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.model.OcrRoute
 import com.multilingualbookreader.domain.model.ThemeMode
+import com.multilingualbookreader.network.BackendUrl
 import com.multilingualbookreader.presentation.components.BookReaderCard
 import com.multilingualbookreader.presentation.components.BrandLockup
 import com.multilingualbookreader.presentation.components.FilterChipItem
@@ -90,7 +91,7 @@ fun SettingsRoute(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     SettingsScreen(
         onServer = onServer,
-        serverConfigured = state.backendBaseUrl.isNotBlank(),
+        serverConfigured = state.backendBaseUrl.isNotBlank() || BackendUrl.isPacked(BuildConfig.API_BASE_URL),
         updateSummary = updateSummary(updateState.phase, updateState.installedVersionName),
         theme = state.themeMode,
         fontScale = state.fontScale,

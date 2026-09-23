@@ -18,9 +18,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Offline fallback using the device speech engine.
@@ -48,7 +50,11 @@ class AndroidTtsEngine @Inject constructor(
         voice: VoiceProfile,
         speed: Float,
     ): AudioResult = mutex.withLock {
-        if (!ready.get()) error("Device speech is not ready.")
+        val prepared = withTimeoutOrNull(8_000) {
+            while (!ready.get()) delay(50)
+            true
+        } == true
+        if (!prepared) error("Device speech is not ready.")
         val locale = localeFor(language)
         tts.language = locale
         tts.setSpeechRate(speed.coerceIn(0.5f, 2.0f))

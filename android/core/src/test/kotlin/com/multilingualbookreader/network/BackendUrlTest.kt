@@ -65,4 +65,19 @@ class BackendUrlTest {
         assertThat(BackendUrl.rewrite(original, "")).isEqualTo(original)
         assertThat(BackendUrl.rewrite(original, "   ")).isEqualTo(original)
     }
+
+    @Test
+    fun packedUrlIgnoresEmulatorAndPlaceholderHosts() {
+        assertThat(BackendUrl.isPacked("https://svara.example.org")).isTrue()
+        assertThat(BackendUrl.isPacked("https://api.example.com/")).isFalse()
+        assertThat(BackendUrl.isPacked("http://10.0.2.2:8080/")).isFalse()
+        assertThat(BackendUrl.isPacked("")).isFalse()
+    }
+
+    @Test
+    fun packedApiKeyYieldsToASavedOverride() {
+        assertThat(BackendUrl.resolveApiKey("typed", "baked")).isEqualTo("typed")
+        assertThat(BackendUrl.resolveApiKey("  ", "baked")).isEqualTo("baked")
+        assertThat(BackendUrl.resolveApiKey(null, "")).isNull()
+    }
 }

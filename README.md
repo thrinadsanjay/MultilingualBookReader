@@ -52,6 +52,10 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
+Production deploys go through `.github/workflows/deploy-backend.yml` over SSH. Add the host,
+user, key, `SVARA_API_KEY`, and `GOOGLE_TTS_API_KEY` as Actions secrets, plus `BACKEND_PUBLIC_URL`
+as a variable. See [DEPLOYMENT.md](DEPLOYMENT.md#deploy-from-github-actions).
+
 ### Android
 
 1. Install Android Studio (Koala+), JDK 17, and Android SDK 35.

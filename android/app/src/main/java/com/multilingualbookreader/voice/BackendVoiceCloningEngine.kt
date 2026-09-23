@@ -36,55 +36,67 @@ class BackendVoiceCloningEngine @Inject constructor(
         if (!consentConfirmed) {
             throw AppError.Generic("Please confirm you are allowed to use this voice.")
         }
-        if (sampleWavFiles.size < 3) {
-            throw AppError.Generic("Record at least three samples in a quiet room.")
+        if (sampleWavFiles.isEmpty()) {
+            throw AppError.Generic("Record at least one sample, then tap Create voice.")
         }
+        val trimmed = name.trim().ifBlank { "My voice" }
         val localId = UUID.randomUUID().toString()
         sampleWavFiles.forEachIndexed { index, bytes -> files.saveVoiceSample(localId, index, bytes) }
-        if (!connectivity.isOnline) {
-            val draft = VoiceProfile(
-                id = localId,
-                name = name,
-                provider = "pending-upload",
-                providerVoiceId = null,
-                supportedLanguages = emptyList(),
-                status = VoiceStatus.DRAFT,
-                isCloned = true,
-                qualityNote = "Saved on this phone. Connect to the internet to finish creating your voice.",
+        val local = localDraft(localId, trimmed, sampleWavFiles.size)
+        voices.upsert(local)
+        if (!connectivity.isOnline || sampleWavFiles.size < 3) {
+            return local
+        }
+        return runCatching {
+            val parts = sampleWavFiles.mapIndexed { index, bytes ->
+                MultipartBody.Part.createFormData(
+                    "samples",
+                    "sample-$index.m4a",
+                    bytes.toRequestBody("audio/mp4".toMediaType()),
+                )
+            }
+            val remote = api.createVoice(
+                name = trimmed.toRequestBody("text/plain".toMediaType()),
+                consent = true.toString().toRequestBody("text/plain".toMediaType()),
+                samples = parts,
+            )
+            val profile = VoiceProfile(
+                id = remote.id,
+                name = remote.name.ifBlank { trimmed },
+                provider = remote.provider,
+                providerVoiceId = remote.providerVoiceId,
+                supportedLanguages = remote.supportedLanguages.map { SupportedLanguage.fromBcp47(it) },
+                experimentalLanguages = remote.experimentalLanguages.map { SupportedLanguage.fromBcp47(it) },
+                status = runCatching { VoiceStatus.valueOf(remote.status.uppercase()) }.getOrDefault(VoiceStatus.READY),
+                isCloned = remote.isCloned,
+                qualityNote = remote.qualityNote,
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
             )
-            voices.upsert(draft)
-            return draft
-        }
-        val parts = sampleWavFiles.mapIndexed { index, bytes ->
-            MultipartBody.Part.createFormData(
-                "samples",
-                "sample-$index.wav",
-                bytes.toRequestBody("audio/wav".toMediaType()),
-            )
-        }
-        val remote = api.createVoice(
-            name = name.toRequestBody("text/plain".toMediaType()),
-            consent = true.toString().toRequestBody("text/plain".toMediaType()),
-            samples = parts,
-        )
-        val profile = VoiceProfile(
-            id = remote.id,
-            name = remote.name,
-            provider = remote.provider,
-            providerVoiceId = remote.providerVoiceId,
-            supportedLanguages = remote.supportedLanguages.map { SupportedLanguage.fromBcp47(it) },
-            experimentalLanguages = remote.experimentalLanguages.map { SupportedLanguage.fromBcp47(it) },
-            status = runCatching { VoiceStatus.valueOf(remote.status.uppercase()) }.getOrDefault(VoiceStatus.READY),
-            isCloned = remote.isCloned,
-            qualityNote = remote.qualityNote,
+            voices.upsert(profile)
+            voices.delete(localId)
+            files.deleteVoiceSamples(localId)
+            profile
+        }.getOrElse { local }
+    }
+
+    companion object {
+        fun localDraft(id: String, name: String, sampleCount: Int) = VoiceProfile(
+            id = id,
+            name = name,
+            provider = "pending-upload",
+            providerVoiceId = null,
+            supportedLanguages = emptyList(),
+            status = VoiceStatus.DRAFT,
+            isCloned = true,
+            qualityNote = if (sampleCount < 3) {
+                "Saved on this phone with $sampleCount sample${if (sampleCount == 1) "" else "s"}. Tap Use this voice, then Compare voices to hear it. Books use this phone's speaker until a clone is ready."
+            } else {
+                "Your recording is saved. Tap Use this voice, then Compare voices to hear it. Books use this phone's speaker until a reading server clones the rest."
+            },
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
         )
-        voices.upsert(profile)
-        files.deleteVoiceSamples(localId)
-        return profile
     }
 
     override suspend fun getVoice(id: String): VoiceProfile {

@@ -45,8 +45,31 @@ class LocalFileStore @Inject constructor(
         return file.absolutePath
     }
 
+    fun latestVoiceSample(profileId: String): Pair<ByteArray, String>? {
+        val file = File(voiceDir, profileId).listFiles()
+            ?.filter { it.isFile && it.length() > 0 }
+            ?.maxByOrNull { it.lastModified() }
+            ?: return null
+        return file.readBytes() to mimeForVoiceSample(file)
+    }
+
     fun deleteVoiceSamples(profileId: String) {
         File(voiceDir, profileId).deleteRecursively()
+    }
+
+    private fun mimeForVoiceSample(file: File): String {
+        val head = ByteArray(12)
+        val read = file.inputStream().use { it.read(head) }
+        val prefix = if (read > 0) head.copyOf(read) else ByteArray(0)
+        val ascii = prefix.decodeToString()
+        return when {
+            prefix.size >= 8 && ascii.substring(4, 8) == "ftyp" -> "audio/mp4"
+            prefix.size >= 4 && ascii.startsWith("RIFF") -> "audio/wav"
+            file.extension.equals("mp3", ignoreCase = true) -> "audio/mpeg"
+            file.extension.equals("wav", ignoreCase = true) && !ascii.startsWith("RIFF") -> "audio/mp4"
+            file.extension.equals("m4a", ignoreCase = true) || file.extension.equals("mp4", ignoreCase = true) -> "audio/mp4"
+            else -> "audio/mp4"
+        }
     }
 
     fun deleteBookFiles(bookId: String) {

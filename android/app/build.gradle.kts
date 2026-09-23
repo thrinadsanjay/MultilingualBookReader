@@ -14,11 +14,23 @@ val playKeystore = System.getenv("BOOKREADER_KEYSTORE_PATH")
     ?.let(::File)
     ?.takeIf(File::exists)
 
-// Voice cloning and cloud OCR call the project's own backend. Point release builds at it with
-// -PreleaseApiBaseUrl=https://... or BOOKREADER_API_BASE_URL; the default is deliberately unusable.
-val releaseApiBaseUrl: String = (findProperty("releaseApiBaseUrl") as String?)
-    ?: System.getenv("BOOKREADER_API_BASE_URL")
-    ?: "https://api.example.com/"
+// Voice cloning and cloud OCR call the project's own backend. CI sets
+// BOOKREADER_API_BASE_URL and BOOKREADER_API_KEY so testers do not type Settings.
+fun envOrProperty(env: String, property: String, default: String = ""): String =
+    (findProperty(property) as String?)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(env)?.takeIf { it.isNotBlank() }
+        ?: default
+
+fun buildConfigQuoted(value: String): String =
+    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+fun trailingSlash(url: String): String = if (url.endsWith("/")) url else "$url/"
+
+val packedApiBaseUrl = envOrProperty("BOOKREADER_API_BASE_URL", "apiBaseUrl")
+    .ifBlank { envOrProperty("BOOKREADER_API_BASE_URL", "releaseApiBaseUrl") }
+val packedApiKey = envOrProperty("BOOKREADER_API_KEY", "apiKey")
+val releaseApiBaseUrl = trailingSlash(packedApiBaseUrl.ifBlank { "https://api.example.com/" })
+val debugApiBaseUrl = trailingSlash(packedApiBaseUrl.ifBlank { "http://10.0.2.2:8080/" })
 
 android {
     namespace = "com.multilingualbookreader"
@@ -30,8 +42,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump versionCode whenever testers should receive an in-app update.
-        versionCode = 23
-        versionName = "0.3.9"
+        versionCode = 27
+        versionName = "0.3.13"
         testInstrumentationRunner = "com.multilingualbookreader.HiltTestRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -62,7 +74,8 @@ android {
             isMinifyEnabled = false
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "true")
             buildConfigField("boolean", "SELF_INSTALL_SUPPORTED", "true")
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField("String", "API_BASE_URL", buildConfigQuoted(debugApiBaseUrl))
+            buildConfigField("String", "API_KEY", buildConfigQuoted(packedApiKey))
             buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
             buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }
@@ -77,7 +90,8 @@ android {
             buildConfigField("boolean", "ENABLE_VERBOSE_LOGS", "false")
             // Release builds omit REQUEST_INSTALL_PACKAGES, so updates always come from Play.
             buildConfigField("boolean", "SELF_INSTALL_SUPPORTED", "false")
-            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", buildConfigQuoted(releaseApiBaseUrl))
+            buildConfigField("String", "API_KEY", buildConfigQuoted(packedApiKey))
             buildConfigField("String", "UPDATE_OWNER", "\"thrinadsanjay\"")
             buildConfigField("String", "UPDATE_REPO", "\"MultilingualBookReader\"")
         }

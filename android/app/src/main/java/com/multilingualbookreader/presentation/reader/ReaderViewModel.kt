@@ -63,9 +63,10 @@ class ReaderViewModel @Inject constructor(
             playback.state.collect { play -> _ui.update { it.copy(playback = play) } }
         }
         viewModelScope.launch {
-            val selectedId = settings.get().selectedVoiceId
-            val profile = selectedId?.let { voices.get(it) } ?: defaultStandardVoice()
-            _ui.update { it.copy(selectedVoice = profile) }
+            settings.observe().collect { current ->
+                val profile = current.selectedVoiceId?.let { voices.get(it) } ?: defaultStandardVoice()
+                _ui.update { it.copy(selectedVoice = profile) }
+            }
         }
         viewModelScope.launch {
             loadedBookId.filterNotNull().collectLatest { id ->

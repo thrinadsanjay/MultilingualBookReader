@@ -1,0 +1,133 @@
+name: deploy-backend
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+# Ships the FastAPI image to the host in DEPLOY_HOST over SSH, then rebuilds it with
+# docker compose. Google / ElevenLabs keys stay on that machine; they never enter the APK.
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deploy credentials
+        id: gate
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER || vars.DEPLOY_USER }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY || vars.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -n "$HOST" ] && [ -n "$USER" ] && [ -n "$KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Add DEPLOY_HOST, DEPLOY_USER, and DEPLOY_SSH_KEY (repo secrets or variables) to deploy."
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "::error::Deploy was started by hand but the SSH secrets are missing."
+              exit 1
+            fi
+          fi
+
+      - name: Write remote environment file
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          SVARA_API_KEY: ${{ secrets.SVARA_API_KEY || secrets.API_KEY || vars.SVARA_API_KEY }}
+          SVARA_SECRET_KEY: ${{ secrets.SVARA_SECRET_KEY || vars.SVARA_SECRET_KEY }}
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY || vars.GOOGLE_TTS_API_KEY }}
+          OCR_API_KEY: ${{ secrets.OCR_API_KEY || vars.OCR_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY || vars.ELEVENLABS_API_KEY }}
+          TTS_PROVIDER: ${{ vars.TTS_PROVIDER }}
+          OCR_PROVIDER: ${{ vars.OCR_PROVIDER }}
+          VOICE_PROVIDER: ${{ vars.VOICE_PROVIDER }}
+          BACKEND_PUBLIC_URL: ${{ vars.BACKEND_PUBLIC_URL || secrets.BACKEND_PUBLIC_URL }}
+          DEPLOY_BIND: ${{ vars.DEPLOY_BIND }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SVARA_API_KEY" ]; then
+            echo "::error::Set SVARA_API_KEY (the password the phone sends as X-API-Key)."
+            exit 1
+          fi
+          if [ -z "$SVARA_SECRET_KEY" ]; then
+            SVARA_SECRET_KEY=$(openssl rand -base64 32)
+            echo "::warning::SVARA_SECRET_KEY was empty; generated one for this deploy. Add the secret so it stays stable."
+          fi
+          if [ -z "${TTS_PROVIDER}" ]; then
+            if [ -n "$GOOGLE_TTS_API_KEY" ]; then TTS_PROVIDER=google; else TTS_PROVIDER=espeak; fi
+          fi
+          if [ -z "${OCR_PROVIDER}" ]; then OCR_PROVIDER=tesseract; fi
+          if [ -z "${VOICE_PROVIDER}" ]; then
+            if [ -n "$ELEVENLABS_API_KEY" ]; then VOICE_PROVIDER=elevenlabs; else VOICE_PROVIDER=mock; fi
+          fi
+          {
+            echo "DEBUG=false"
+            echo "APP_NAME=Svara API"
+            echo "API_KEY=${SVARA_API_KEY}"
+            echo "SECRET_KEY=${SVARA_SECRET_KEY}"
+            echo "OCR_PROVIDER=${OCR_PROVIDER}"
+            echo "TTS_PROVIDER=${TTS_PROVIDER}"
+            echo "VOICE_PROVIDER=${VOICE_PROVIDER}"
+            echo "GOOGLE_TTS_API_KEY=${GOOGLE_TTS_API_KEY}"
+            echo "TTS_API_KEY=${GOOGLE_TTS_API_KEY}"
+            echo "OCR_API_KEY=${OCR_API_KEY}"
+            echo "ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}"
+            echo "VOICE_API_KEY=${ELEVENLABS_API_KEY}"
+            echo "DEPLOY_BIND=${DEPLOY_BIND:-127.0.0.1:8080}"
+            echo "DATABASE_URL=sqlite+aiosqlite:////data/svara.db"
+            echo "AUDIO_CACHE_DIR=/data/audio"
+            echo "VOICE_SAMPLE_DIR=/data/voice"
+            echo "RATE_LIMIT=60/minute"
+            echo "CORS_ORIGINS=*"
+          } > "$RUNNER_TEMP/svara.env"
+          chmod 600 "$RUNNER_TEMP/svara.env"
+
+      - name: Install SSH key
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY || vars.DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS || vars.DEPLOY_SSH_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "${KNOWN}" ]; then
+            printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync backend and start compose
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER || vars.DEPLOY_USER }}
+          DEST: ${{ vars.DEPLOY_PATH || '/opt/svara' }}
+          INSTALL_NGINX: ${{ vars.DEPLOY_NGINX }}
+          BACKEND_PUBLIC_URL: ${{ vars.BACKEND_PUBLIC_URL || secrets.BACKEND_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes)
+          RSYNC_RSH="ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes"
+          "${SSH[@]}" "$USER@$HOST" "mkdir -p '$DEST/backend' '$DEST/deploy'"
+          rsync -az --delete -e "$RSYNC_RSH" \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '.env' \
+            --exclude 'storage' \
+            --exclude '.pytest_cache' \
+            backend/ "$USER@$HOST:$DEST/backend/"
+          rsync -az -e "$RSYNC_RSH" deploy/nginx-svara.conf "$USER@$HOST:$DEST/deploy/nginx-svara.conf"
+          scp -i ~/.ssh/id_deploy -o IdentitiesOnly=yes "$RUNNER_TEMP/svara.env" "$USER@$HOST:$DEST/backend/.env"
+          "${SSH[@]}" "$USER@$HOST" \
+            "DEST='$DEST' INSTALL_NGINX='${INSTALL_NGINX:-}' BACKEND_PUBLIC_URL='${BACKEND_PUBLIC_URL:-}' bash -s" \
+            < deploy/remote-up.sh
+          rm -f "$RUNNER_TEMP/svara.env"

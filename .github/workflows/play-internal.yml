@@ -44,7 +44,8 @@ jobs:
           BOOKREADER_KEYSTORE_PASSWORD: ${{ secrets.PLAY_KEYSTORE_PASSWORD }}
           BOOKREADER_KEY_ALIAS: ${{ secrets.PLAY_KEY_ALIAS }}
           BOOKREADER_KEY_PASSWORD: ${{ secrets.PLAY_KEY_PASSWORD }}
-          BOOKREADER_API_BASE_URL: ${{ secrets.BOOKREADER_API_BASE_URL }}
+          BOOKREADER_API_BASE_URL: ${{ vars.BACKEND_PUBLIC_URL || secrets.BACKEND_PUBLIC_URL || secrets.BOOKREADER_API_BASE_URL }}
+          BOOKREADER_API_KEY: ${{ secrets.SVARA_API_KEY || secrets.BOOKREADER_API_KEY || vars.SVARA_API_KEY }}
         run: ./gradlew :app:bundleRelease --no-daemon
       - name: Upload to internal testing
         if: steps.gate.outputs.ready == 'true'

@@ -67,6 +67,45 @@ The image installs `tesseract-ocr-tel` and the build fails if the Telugu data is
 container that starts can read Telugu. Put it behind HTTPS (Caddy, nginx, or a tunnel): the phone
 sends the API key on every request, and Android blocks plain `http` to anything but localhost.
 
+### Deploy from GitHub Actions
+
+`.github/workflows/deploy-backend.yml` rsyncs `backend/` over SSH and runs `docker compose up`
+on the host. The container listens on `127.0.0.1:8080`; nginx in front of it should terminate TLS.
+Google and ElevenLabs keys stay in GitHub secrets and are written to the server `.env` — they are
+never compiled into the APK.
+
+On the server, once: install Docker Engine + the compose plugin, create `/opt/svara` (or set
+`DEPLOY_PATH`), and add the GitHub Actions SSH public key to that user's `authorized_keys`.
+Point an nginx `server` at `http://127.0.0.1:8080` (see `deploy/nginx-svara.conf`) and issue a
+certificate (`sudo certbot --nginx -d your.domain`).
+
+Add these on the GitHub repo (**Settings → Secrets and variables → Actions**). Secrets are
+preferred for keys; variables work too if you paste them there.
+
+| Name | Secret or variable | What it is |
+| --- | --- | --- |
+| `DEPLOY_HOST` | either | Server hostname or IP |
+| `DEPLOY_USER` | either | SSH user |
+| `DEPLOY_SSH_KEY` | **secret** | Private key for that user |
+| `DEPLOY_SSH_KNOWN_HOSTS` | secret (optional) | `ssh-keyscan` output; skipped → CI scans the host |
+| `DEPLOY_PATH` | variable (optional) | Remote directory, default `/opt/svara` |
+| `DEPLOY_NGINX` | variable (optional) | `true` to copy the site file and reload nginx |
+| `BACKEND_PUBLIC_URL` | variable | Public HTTPS origin, e.g. `https://books.example.org` |
+| `SVARA_API_KEY` | **secret** | Password the phone sends as `X-API-Key` |
+| `SVARA_SECRET_KEY` | **secret** | JWT signing key; generated per deploy if omitted |
+| `GOOGLE_TTS_API_KEY` | secret (optional) | Google Cloud Text-to-Speech; selects `TTS_PROVIDER=google` |
+| `OCR_API_KEY` | secret (optional) | Google Cloud Vision |
+| `ELEVENLABS_API_KEY` | secret (optional) | Voice cloning |
+| `TTS_PROVIDER` / `OCR_PROVIDER` / `VOICE_PROVIDER` | variable (optional) | Override the automatic choice |
+
+`publish-debug-apk.yml` and `play-internal.yml` read `BACKEND_PUBLIC_URL` and `SVARA_API_KEY`
+and bake them into the APK so testers do not open Settings. The Google key still never ships
+in the app. Anyone who unpacks the APK can recover the shared `SVARA_API_KEY`; rotate it if
+the file leaks, and keep billing keys on the server only.
+
+Run **Actions → deploy-backend → Run workflow** after the secrets are saved, or push to `main`
+under `backend/`.
+
 ### Check it
 
 ```bash
@@ -98,9 +137,9 @@ to create accounts. User accounts still work if you prefer them; leave `API_KEY`
 
 ### Point the phone at it
 
-Settings → **Reading server** → enter the address and key → **Test connection**. The reply states
-whether Telugu is ready and which models are installed. Nothing is rebuilt; the app rewrites its
-requests onto whatever address is saved.
+CI debug/Play builds already contain `BACKEND_PUBLIC_URL` and `SVARA_API_KEY`. Users do not need
+to store either. Settings → **Reading server** is only an override. A local debug build without
+those variables still uses `http://10.0.2.2:8080/` for the emulator.
 
 ### Tuning notes
 

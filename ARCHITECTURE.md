@@ -23,7 +23,9 @@ Packages under `app/src/main/java/com/multilingualbookreader/` follow the reques
 
 ## Why not one cloud vendor in the app
 
-API keys must never ship in the APK. Even a “default” Google or ElevenLabs URL baked into ViewModels would make later swaps painful. The app has:
+Google, Azure, and ElevenLabs keys must never ship in the APK. The only credential a build may
+carry is the shared Svara `API_KEY`, so phones can call your nginx front-end without opening
+Settings. Cloud vendor keys stay in GitHub secrets and the server `.env`. The app has:
 
 - `OcrEngine` / `TextToSpeechEngine` / `VoiceCloningEngine`
 - A composite implementation that prefers on-device work, then the backend

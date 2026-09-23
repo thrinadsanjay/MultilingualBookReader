@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -62,6 +63,7 @@ import com.multilingualbookreader.R
 import com.multilingualbookreader.domain.model.SupportedLanguage
 import com.multilingualbookreader.domain.model.VoiceProfile
 import com.multilingualbookreader.presentation.components.BookReaderCard
+import com.multilingualbookreader.presentation.components.FilterChipItem
 import com.multilingualbookreader.presentation.components.PrimaryButton
 import com.multilingualbookreader.presentation.components.ScreenHeader
 import com.multilingualbookreader.presentation.components.SecondaryButton
@@ -79,6 +81,7 @@ fun VoiceRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val selectedVoiceId by viewModel.selectedVoiceId.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var granted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
@@ -96,9 +99,11 @@ fun VoiceRoute(
         onPause = viewModel::pauseRecording,
         onResume = viewModel::resumeRecording,
         onRetake = viewModel::retakeLast,
+        onPlayLast = viewModel::playLastSample,
         onCreate = viewModel::create,
         onDelete = viewModel::delete,
         onSelect = viewModel::select,
+        selectedVoiceId = selectedVoiceId,
         onTest = onTest,
         onBack = onBack,
         showBack = showBack,
@@ -118,9 +123,11 @@ fun VoiceScreen(
     onPause: () -> Unit = {},
     onResume: () -> Unit = {},
     onRetake: () -> Unit = {},
+    onPlayLast: () -> Unit = {},
     onCreate: () -> Unit,
     onDelete: (String) -> Unit,
     onSelect: (VoiceProfile) -> Unit,
+    selectedVoiceId: String? = null,
     onTest: () -> Unit,
     onBack: () -> Unit,
     showBack: Boolean = true,
@@ -255,9 +262,21 @@ fun VoiceScreen(
                 else -> PrimaryButton("Start recording samples", onStart, icon = Icons.Outlined.Mic)
             }
             if (state.samples > 0 && !state.recording) {
+                SecondaryButton("Play last sample", onPlayLast)
                 SecondaryButton("Retake last sample", onRetake)
             }
-            PrimaryButton("Create voice", onCreate, enabled = state.consent && state.samples >= 3)
+            PrimaryButton(
+                if (state.creating) "Creating voice…" else "Create voice",
+                onCreate,
+                enabled = !state.creating && !state.recording,
+            )
+            if (!state.consent || state.samples == 0) {
+                Text(
+                    "Tick the consent box and record at least one sample, then tap Create voice.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = brand.textSecondary,
+                )
+            }
             SecondaryButton("Compare voices", onTest)
             state.message?.let { Text(it, color = brand.textSecondary) }
             state.error?.let { Text(it, color = brand.danger) }
@@ -276,7 +295,8 @@ fun VoiceScreen(
                     }
                     profile.qualityNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = brand.textSecondary) }
                     Spacer(Modifier.height(8.dp))
-                    PrimaryButton("Use this voice", { onSelect(profile) })
+                    val using = profile.id == selectedVoiceId
+                    PrimaryButton(if (using) "Using this voice" else "Use this voice", { onSelect(profile) })
                     Spacer(Modifier.height(8.dp))
                     SecondaryButton("Delete voice", { onDelete(profile.id) })
                 }
@@ -346,20 +366,24 @@ fun VoiceTestRoute(
     onBack: () -> Unit,
     viewModel: VoiceQualityTestViewModel = hiltViewModel(),
 ) {
-    val message by viewModel.message.collectAsStateWithLifecycle()
+    val ui by viewModel.ui.collectAsStateWithLifecycle()
     val english by viewModel.english.collectAsStateWithLifecycle()
     val hindi by viewModel.hindi.collectAsStateWithLifecycle()
     val telugu by viewModel.telugu.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     VoiceTestScreen(
-        message = message,
+        message = ui.message,
         english = english,
         hindi = hindi,
         telugu = telugu,
+        voices = listOf(defaultStandardVoice()) + profiles,
+        selectedVoiceId = ui.selectedVoiceId,
+        playingLanguage = ui.playingLanguage,
         onEnglish = { viewModel.english.value = it },
         onHindi = { viewModel.hindi.value = it },
         onTelugu = { viewModel.telugu.value = it },
-        onPlay = { text, language -> viewModel.play(text, language, profiles.firstOrNull() ?: defaultStandardVoice()) },
+        onSelectVoice = viewModel::selectVoice,
+        onPlay = { text, language -> viewModel.play(text, language) },
         onBack = onBack,
     )
 }
@@ -376,6 +400,10 @@ fun VoiceTestScreen(
     onTelugu: (String) -> Unit,
     onPlay: (String, SupportedLanguage) -> Unit,
     onBack: () -> Unit,
+    voices: List<VoiceProfile> = emptyList(),
+    selectedVoiceId: String = defaultStandardVoice().id,
+    playingLanguage: SupportedLanguage? = null,
+    onSelectVoice: (String) -> Unit = {},
 ) {
     val brand = LocalBrand.current
     Scaffold(
@@ -392,12 +420,32 @@ fun VoiceTestScreen(
         Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ScreenHeader("Listen before you choose", "Do not lock in a custom voice until Telugu, Hindi, and English all sound acceptable.")
             Text(message, color = brand.textSecondary)
+            if (voices.isNotEmpty()) {
+                Text("Voice", style = MaterialTheme.typography.titleMedium, color = brand.textPrimary)
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    voices.forEach { voice ->
+                        FilterChipItem(voice.name, selectedVoiceId == voice.id) { onSelectVoice(voice.id) }
+                    }
+                }
+            }
             OutlinedTextField(english, onEnglish, label = { Text("English") }, modifier = Modifier.fillMaxWidth())
-            PrimaryButton("Play English", onClick = { onPlay(english, SupportedLanguage.ENGLISH) })
+            PrimaryButton(
+                if (playingLanguage == SupportedLanguage.ENGLISH) "Playing English…" else "Play English",
+                onClick = { onPlay(english, SupportedLanguage.ENGLISH) },
+            )
             OutlinedTextField(hindi, onHindi, label = { Text("Hindi") }, modifier = Modifier.fillMaxWidth())
-            PrimaryButton("Play Hindi", onClick = { onPlay(hindi, SupportedLanguage.HINDI) })
+            PrimaryButton(
+                if (playingLanguage == SupportedLanguage.HINDI) "Playing Hindi…" else "Play Hindi",
+                onClick = { onPlay(hindi, SupportedLanguage.HINDI) },
+            )
             OutlinedTextField(telugu, onTelugu, label = { Text("Telugu") }, modifier = Modifier.fillMaxWidth())
-            PrimaryButton("Play Telugu", onClick = { onPlay(telugu, SupportedLanguage.TELUGU) })
+            PrimaryButton(
+                if (playingLanguage == SupportedLanguage.TELUGU) "Playing Telugu…" else "Play Telugu",
+                onClick = { onPlay(telugu, SupportedLanguage.TELUGU) },
+            )
         }
     }
 }

@@ -487,7 +487,7 @@ private fun ReaderListenBar(
     val playing = state.playback.isPlaying
     val label = when {
         state.pages.isEmpty() -> "No pages yet"
-        else -> "${state.pageIndex + 1}  /  ${state.pages.size}"
+        else -> "${state.pageIndex + 1}  /  ${state.pages.size} · ${state.selectedVoice.name}"
     }
     Row(
         Modifier

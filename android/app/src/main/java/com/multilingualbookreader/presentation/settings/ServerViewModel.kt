@@ -2,6 +2,7 @@ package com.multilingualbookreader.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.multilingualbookreader.BuildConfig
 import com.multilingualbookreader.domain.repository.SettingsRepository
 import com.multilingualbookreader.network.BackendUrl
 import com.multilingualbookreader.network.BookReaderApi
@@ -19,6 +20,7 @@ data class ServerUiState(
     val testing: Boolean = false,
     val result: String? = null,
     val ok: Boolean = false,
+    val usesPackedServer: Boolean = false,
 ) {
     /** Android blocks unencrypted traffic, and a key sent over http would be readable in transit. */
     val insecureWarning: String?
@@ -40,7 +42,11 @@ class ServerViewModel @Inject constructor(
     private val settings: SettingsRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(
-        ServerUiState(url = credentials.serverUrl().orEmpty(), apiKey = credentials.apiKey().orEmpty()),
+        ServerUiState(
+            url = credentials.serverUrl().orEmpty(),
+            apiKey = credentials.apiKey().orEmpty(),
+            usesPackedServer = BackendUrl.isPacked(BuildConfig.API_BASE_URL),
+        ),
     )
     val state: StateFlow<ServerUiState> = _state
 

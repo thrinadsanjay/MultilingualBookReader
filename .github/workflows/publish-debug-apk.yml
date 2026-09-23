@@ -29,6 +29,9 @@ jobs:
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
       - name: Assemble debug APK
         working-directory: android
+        env:
+          BOOKREADER_API_BASE_URL: ${{ vars.BACKEND_PUBLIC_URL || secrets.BACKEND_PUBLIC_URL || secrets.BOOKREADER_API_BASE_URL }}
+          BOOKREADER_API_KEY: ${{ secrets.SVARA_API_KEY || secrets.BOOKREADER_API_KEY || vars.SVARA_API_KEY }}
         run: ./gradlew :app:assembleDebug --no-daemon
       - name: Publish rolling test release
         env:
