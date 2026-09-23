@@ -81,6 +81,7 @@ fun VoiceRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val selectedVoiceId by viewModel.selectedVoiceId.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var granted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
@@ -102,6 +103,7 @@ fun VoiceRoute(
         onCreate = viewModel::create,
         onDelete = viewModel::delete,
         onSelect = viewModel::select,
+        selectedVoiceId = selectedVoiceId,
         onTest = onTest,
         onBack = onBack,
         showBack = showBack,
@@ -125,6 +127,7 @@ fun VoiceScreen(
     onCreate: () -> Unit,
     onDelete: (String) -> Unit,
     onSelect: (VoiceProfile) -> Unit,
+    selectedVoiceId: String? = null,
     onTest: () -> Unit,
     onBack: () -> Unit,
     showBack: Boolean = true,
@@ -292,7 +295,8 @@ fun VoiceScreen(
                     }
                     profile.qualityNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = brand.textSecondary) }
                     Spacer(Modifier.height(8.dp))
-                    PrimaryButton("Use this voice", { onSelect(profile) })
+                    val using = profile.id == selectedVoiceId
+                    PrimaryButton(if (using) "Using this voice" else "Use this voice", { onSelect(profile) })
                     Spacer(Modifier.height(8.dp))
                     SecondaryButton("Delete voice", { onDelete(profile.id) })
                 }

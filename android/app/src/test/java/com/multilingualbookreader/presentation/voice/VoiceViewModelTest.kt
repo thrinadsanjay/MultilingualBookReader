@@ -47,6 +47,27 @@ class VoiceViewModelTest {
         val draft = com.multilingualbookreader.voice.BackendVoiceCloningEngine.localDraft("id", "Amma", 1)
         assertThat(draft.status).isEqualTo(VoiceStatus.DRAFT)
         assertThat(draft.qualityNote).contains("Saved on this phone")
+        assertThat(draft.qualityNote).contains("Use this voice")
+    }
+
+    @Test
+    fun selectConfirmsTheChosenVoice() = runBlocking {
+        val settings = FakeSettings()
+        val vm = viewModel(settings = settings)
+        val profile = VoiceProfile(
+            id = "sanjay",
+            name = "Sanjay",
+            provider = "pending-upload",
+            providerVoiceId = null,
+            supportedLanguages = emptyList(),
+            status = VoiceStatus.DRAFT,
+            isCloned = true,
+            createdAt = 1,
+            updatedAt = 1,
+        )
+        vm.selectNow(profile)
+        assertThat(settings.value.selectedVoiceId).isEqualTo("sanjay")
+        assertThat(vm.state.value.message).contains("Using Sanjay")
     }
 
     private fun viewModel(

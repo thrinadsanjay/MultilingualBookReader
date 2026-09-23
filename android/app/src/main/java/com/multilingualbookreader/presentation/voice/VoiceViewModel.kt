@@ -10,10 +10,11 @@ import com.multilingualbookreader.domain.engine.TextToSpeechEngine
 import com.multilingualbookreader.domain.engine.VoiceCloningEngine
 import com.multilingualbookreader.domain.model.SupportedLanguage
 import com.multilingualbookreader.domain.model.VoiceProfile
-import com.multilingualbookreader.domain.model.VoiceStatus
 import com.multilingualbookreader.domain.repository.SettingsRepository
 import com.multilingualbookreader.domain.repository.VoiceRepository
 import com.multilingualbookreader.presentation.reader.defaultStandardVoice
+import com.multilingualbookreader.storage.LocalFileStore
+import com.multilingualbookreader.tts.usesOnDeviceRecording
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +48,9 @@ class VoiceViewModel @Inject constructor(
     private val preview: SpeechPreviewPlayer,
 ) : AndroidViewModel(application) {
     val profiles = voices.observeProfiles().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val selectedVoiceId = settings.observe()
+        .map { it.selectedVoiceId }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _state = MutableStateFlow(VoiceUiState())
     val state: StateFlow<VoiceUiState> = _state
     private var recorder: MediaRecorder? = null
@@ -180,7 +185,15 @@ class VoiceViewModel @Inject constructor(
     }
 
     fun select(profile: VoiceProfile) {
-        viewModelScope.launch { settings.update { it.copy(selectedVoiceId = profile.id) } }
+        viewModelScope.launch { selectNow(profile) }
+    }
+
+    internal suspend fun selectNow(profile: VoiceProfile) {
+        settings.update { it.copy(selectedVoiceId = profile.id) }
+        _state.value = _state.value.copy(
+            message = "Using ${profile.name}. Compare voices plays your recording. Books use this phone's speaker until a clone is ready.",
+            error = null,
+        )
     }
 
     private fun persistDraft() {
@@ -201,7 +214,7 @@ class VoiceViewModel @Inject constructor(
 }
 
 data class VoiceTestUiState(
-    val message: String = "Enter text and play. Compare the standard voice with a voice you recorded.",
+    val message: String = "Enter text and play. A voice you recorded plays your saved sample. Standard voice uses this phone's speaker unless a reading server is set.",
     val selectedVoiceId: String = defaultStandardVoice().id,
     val playingLanguage: SupportedLanguage? = null,
 )
@@ -213,6 +226,7 @@ class VoiceQualityTestViewModel @Inject constructor(
     voices: VoiceRepository,
     private val settings: SettingsRepository,
     private val preview: SpeechPreviewPlayer,
+    private val files: LocalFileStore,
 ) : AndroidViewModel(application) {
     val profiles = voices.observeProfiles().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val _ui = MutableStateFlow(VoiceTestUiState())
@@ -246,6 +260,22 @@ class VoiceQualityTestViewModel @Inject constructor(
             return
         }
         val profile = voice ?: resolveVoice(profiles.value, _ui.value.selectedVoiceId)
+        if (profile.usesOnDeviceRecording()) {
+            val sample = files.latestVoiceSample(profile.id)
+            if (sample != null) {
+                preview.play(sample.first, sample.second) {
+                    _ui.value = _ui.value.copy(
+                        playingLanguage = null,
+                        message = "Finished your ${profile.name} recording.",
+                    )
+                }
+                _ui.value = _ui.value.copy(
+                    playingLanguage = language,
+                    message = "Playing your ${profile.name} recording. This is the sample you saved, not the typed sentence. Books still use this phone's speaker until a clone is ready.",
+                )
+                return
+            }
+        }
         _ui.value = _ui.value.copy(
             playingLanguage = language,
             message = "Generating ${language.displayName} with ${profile.name}…",
@@ -282,13 +312,8 @@ class VoiceQualityTestViewModel @Inject constructor(
 
     companion object {
         fun resolveVoice(profiles: List<VoiceProfile>, selectedId: String?): VoiceProfile {
-            val selected = selectedId?.let { id -> profiles.firstOrNull { it.id == id } }
-            val usable = selected ?: profiles.firstOrNull { it.status == VoiceStatus.READY }
-            return when {
-                usable == null -> defaultStandardVoice()
-                usable.status != VoiceStatus.READY || usable.provider == "pending-upload" -> defaultStandardVoice()
-                else -> usable
-            }
+            return selectedId?.let { id -> profiles.firstOrNull { it.id == id } }
+                ?: defaultStandardVoice()
         }
     }
 }

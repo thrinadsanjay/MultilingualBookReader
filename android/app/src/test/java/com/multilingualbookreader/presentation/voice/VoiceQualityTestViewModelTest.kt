@@ -12,6 +12,7 @@ import com.multilingualbookreader.domain.model.VoiceStatus
 import com.multilingualbookreader.domain.repository.SettingsRepository
 import com.multilingualbookreader.domain.repository.VoiceRepository
 import com.multilingualbookreader.presentation.reader.defaultStandardVoice
+import com.multilingualbookreader.storage.LocalFileStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -25,13 +26,7 @@ class VoiceQualityTestViewModelTest {
     fun playSendsSynthesizedBytesToTheSpeaker() = runBlocking {
         val tts = FakeTts()
         val preview = FakePreview()
-        val vm = VoiceQualityTestViewModel(
-            ApplicationProvider.getApplicationContext(),
-            tts,
-            FakeVoices(),
-            FakeSettings(),
-            preview,
-        )
+        val vm = viewModel(tts, preview)
         vm.playNow("Welcome to my book reader.", SupportedLanguage.ENGLISH, defaultStandardVoice())
         assertThat(preview.played?.decodeToString()).isEqualTo("speech-bytes")
         assertThat(preview.mime).isEqualTo("audio/wav")
@@ -40,23 +35,54 @@ class VoiceQualityTestViewModelTest {
     }
 
     @Test
-    fun resolveVoiceFallsBackWhenTheCloneIsStillUploading() {
-        val draft = VoiceProfile(
-            id = "mine",
-            name = "My voice",
-            provider = "pending-upload",
-            providerVoiceId = null,
-            supportedLanguages = emptyList(),
-            status = VoiceStatus.DRAFT,
-            isCloned = true,
-            createdAt = 1,
-            updatedAt = 1,
-        )
+    fun resolveVoiceKeepsADraftRecording() {
+        val draft = draftVoice()
         val voice = VoiceQualityTestViewModel.resolveVoice(listOf(draft), "mine")
-        assertThat(voice.id).isEqualTo(defaultStandardVoice().id)
+        assertThat(voice.id).isEqualTo("mine")
+        assertThat(voice.name).isEqualTo("Sanjay")
     }
 
+    @Test
+    fun playUsesTheSavedSampleForADraftVoice() = runBlocking {
+        val files = LocalFileStore(ApplicationProvider.getApplicationContext())
+        files.saveVoiceSample("mine", 0, "my-voice-sample".toByteArray())
+        val tts = FakeTts()
+        val preview = FakePreview()
+        val vm = viewModel(tts, preview, files)
+        vm.playNow("Welcome to my book reader.", SupportedLanguage.ENGLISH, draftVoice())
+        assertThat(preview.played?.decodeToString()).isEqualTo("my-voice-sample")
+        assertThat(tts.called).isFalse()
+        assertThat(vm.ui.value.message).contains("Sanjay")
+        assertThat(vm.ui.value.message).contains("recording")
+    }
+
+    private fun viewModel(
+        tts: FakeTts,
+        preview: FakePreview,
+        files: LocalFileStore = LocalFileStore(ApplicationProvider.getApplicationContext()),
+    ) = VoiceQualityTestViewModel(
+        ApplicationProvider.getApplicationContext(),
+        tts,
+        FakeVoices(),
+        FakeSettings(),
+        preview,
+        files,
+    )
+
+    private fun draftVoice() = VoiceProfile(
+        id = "mine",
+        name = "Sanjay",
+        provider = "pending-upload",
+        providerVoiceId = null,
+        supportedLanguages = emptyList(),
+        status = VoiceStatus.DRAFT,
+        isCloned = true,
+        createdAt = 1,
+        updatedAt = 1,
+    )
+
     private class FakeTts : TextToSpeechEngine {
+        var called = false
         override val name = "fake-tts"
         override val supportsOffline = true
         override suspend fun synthesize(
@@ -64,7 +90,10 @@ class VoiceQualityTestViewModelTest {
             language: String,
             voice: VoiceProfile,
             speed: Float,
-        ) = AudioResult("speech-bytes".toByteArray(), "audio/wav", 10, "key", false, name)
+        ): AudioResult {
+            called = true
+            return AudioResult("speech-bytes".toByteArray(), "audio/wav", 10, "key", false, name)
+        }
     }
 
     private class FakePreview : SpeechPreviewPlayer {

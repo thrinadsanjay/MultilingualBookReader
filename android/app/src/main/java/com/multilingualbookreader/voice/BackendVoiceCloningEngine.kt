@@ -90,9 +90,9 @@ class BackendVoiceCloningEngine @Inject constructor(
             status = VoiceStatus.DRAFT,
             isCloned = true,
             qualityNote = if (sampleCount < 3) {
-                "Saved on this phone with $sampleCount sample${if (sampleCount == 1) "" else "s"}. Record two more if you want the reading server to clone it."
+                "Saved on this phone with $sampleCount sample${if (sampleCount == 1) "" else "s"}. Tap Use this voice, then Compare voices to hear it. Books use this phone's speaker until a clone is ready."
             } else {
-                "Saved on this phone. A reading server in Settings can finish cloning this voice. Until then, books use the device voice."
+                "Your recording is saved. Tap Use this voice, then Compare voices to hear it. Books use this phone's speaker until a reading server clones the rest."
             },
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),

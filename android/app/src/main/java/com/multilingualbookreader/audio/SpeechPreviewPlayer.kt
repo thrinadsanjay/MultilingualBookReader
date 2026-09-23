@@ -59,6 +59,9 @@ class MediaSpeechPreviewPlayer @Inject constructor(
     private fun extension(mimeType: String): String = when {
         mimeType.contains("wav", ignoreCase = true) -> "wav"
         mimeType.contains("mp3", ignoreCase = true) || mimeType.contains("mpeg", ignoreCase = true) -> "mp3"
+        mimeType.contains("mp4", ignoreCase = true) ||
+            mimeType.contains("m4a", ignoreCase = true) ||
+            mimeType.contains("aac", ignoreCase = true) -> "m4a"
         else -> "bin"
     }
 }

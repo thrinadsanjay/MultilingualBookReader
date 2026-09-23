@@ -5,6 +5,7 @@ import com.multilingualbookreader.domain.engine.TextToSpeechEngine
 import com.multilingualbookreader.domain.model.AudioResult
 import com.multilingualbookreader.domain.model.VoiceProfile
 import com.multilingualbookreader.network.ConnectivityObserver
+import com.multilingualbookreader.network.EncryptedTokenStore
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,6 +14,7 @@ class CompositeTtsEngine @Inject constructor(
     private val backend: BackendTtsEngine,
     private val android: AndroidTtsEngine,
     private val connectivity: ConnectivityObserver,
+    private val tokens: EncryptedTokenStore,
 ) : TextToSpeechEngine {
     override val name: String = "composite-tts"
     override val supportsOffline: Boolean = true
@@ -23,11 +25,18 @@ class CompositeTtsEngine @Inject constructor(
         voice: VoiceProfile,
         speed: Float,
     ): AudioResult {
-        val preferDevice = voice.provider == android.name || !connectivity.isOnline
+        val preferDevice = prefersDeviceSpeech(
+            voice = voice,
+            online = connectivity.isOnline,
+            serverConfigured = !tokens.serverUrl().isNullOrBlank(),
+        )
         val result = if (preferDevice) {
             runCatching { android.synthesize(text, language, voice, speed) }
                 .getOrElse {
-                    if (connectivity.isOnline) backend.synthesize(text, language, voice, speed) else throw it
+                    val canAskServer = connectivity.isOnline &&
+                        !tokens.serverUrl().isNullOrBlank() &&
+                        !voice.usesOnDeviceRecording()
+                    if (canAskServer) backend.synthesize(text, language, voice, speed) else throw it
                 }
         } else {
             runCatching { backend.synthesize(text, language, voice, speed) }
