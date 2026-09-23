@@ -22,7 +22,7 @@ class VoiceViewModelTest {
     fun createAsksForConsentAndASample() = runBlocking {
         val vm = viewModel()
         vm.createNow()
-        assertThat(vm.state.value.error).contains("consent")
+        assertThat(vm.state.value.error).contains("Tick the box")
         vm.setConsent(true)
         vm.createNow()
         assertThat(vm.state.value.error).contains("sample")
